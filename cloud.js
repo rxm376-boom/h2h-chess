@@ -80,8 +80,19 @@
     var wrap = el("div", { "class": "dlg", role: "dialog", "aria-modal": "true", "aria-labelledby": "h2hDlgT" });
     var box = el("form", { "class": "dlgBox" });
     box.appendChild(el("div", { "class": "dlgTitle", id: "h2hDlgT" }, "Sign in"));
-    var txt = el("p", {}, "Enter your email and we'll send you a sign-in link. Your rating and record then follow you to any device.");
+    var txt = el("p", {}, (cfg.providers || []).length ? "Sign in so your rating and record follow you to any device." : "Enter your email and we'll send you a sign-in link. Your rating and record then follow you to any device.");
     box.appendChild(txt);
+    // One-tap providers listed in config.js (e.g. providers: ["google"]); each must be enabled in Supabase.
+    var NAMES = { google: "Google", github: "GitHub", apple: "Apple", discord: "Discord" };
+    (cfg.providers || []).forEach(function (prov) {
+      var b = el("button", { type: "button", "class": "btn" }, "Continue with " + (NAMES[prov] || prov));
+      b.onclick = function () {
+        try { localStorage.setItem("h2h.pendingName", "1"); } catch (err) {}
+        sb.auth.signInWithOAuth({ provider: prov, options: { redirectTo: location.origin + location.pathname } });
+      };
+      box.appendChild(b);
+    });
+    if ((cfg.providers || []).length) box.appendChild(el("p", { "class": "h2hNote" }, "Or get a sign-in link by email:"));
     var inp = el("input", { type: "email", required: "", placeholder: "you@email.com", autocomplete: "email", "aria-label": "Email" });
     box.appendChild(inp);
     var btns = el("div", { "class": "riskBtns" });
