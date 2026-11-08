@@ -1,7 +1,7 @@
 /* H2H Chess on the open web: real login + synced stats through Supabase (free tier).
    The game itself is unchanged. It already knows how to save to an account through
    window.claude.use("user") and window.claude.use("db"); this file provides those two
-   backed by Supabase, and folds username/password and GitHub login into the game's own Sign in button. With no keys in config.js it does nothing
+   backed by Supabase, and folds username/password login into the game's own Sign in button. With no keys in config.js it does nothing
    and the game keeps stats in the browser. */
 (function () {
   "use strict";
@@ -66,7 +66,7 @@
   };
 
   /* ---------- one sign-in: the game's own Player panel ----------
-     Logged out: "Sign in" opens a dialog with GitHub, username + password (sign in or create
+     Logged out: "Sign in" opens a dialog with username + password (sign in or create
      account), and "play as guest on this device" (the game's original name prompt).
      Usernames are stored in Supabase as <username>@USER_DOMAIN; no email is ever sent,
      so "Confirm email" must be OFF in Supabase. After sign-in the game profile is created
@@ -108,7 +108,7 @@
     btns.appendChild(no); btns.appendChild(yes);
     var swap = el("button", { type: "button", "class": "h2hAlt" }, "New here? Create an account");
     var guest = el("button", { type: "button", "class": "h2hAlt" }, "Play as guest on this device");
-    [title, txt, gh, or, user, pass, err, btns, swap, guest].forEach(function (n) { box.appendChild(n); });
+    [title, txt, user, pass, err, btns, swap, guest].forEach(function (n) { box.appendChild(n); });
     wrap.appendChild(box); document.body.appendChild(wrap);
     setTimeout(function () { user.focus(); }, 0);
     function close() { wrap.remove(); document.removeEventListener("keydown", esc); }
