@@ -8,7 +8,7 @@
   var cfg = window.H2H_SUPABASE || {};
   if (!cfg.url || !cfg.anonKey || window.claude) return;
 
-  var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+  var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/dist/umd/supabase.min.js";
   var clientP = new Promise(function (resolve) {
     var s = document.createElement("script");
     s.src = SDK;
