@@ -55,11 +55,11 @@ function backupFor(B, m) {
   const a = B[m.fr][m.fc], N = B.map(row => row.slice()); N[m.fr][m.fc] = null;
   return { a: Math.min(BACKUP_MAX, countAtk(N, m.tr, m.tc, a.c)), d: Math.min(BACKUP_MAX, countAtk(N, m.tr, m.tc, opp(a.c))) };
 }
-// A pawn with nothing protecting it is simply taken, as in chess. Every other piece gets its duel.
+// A piece with nothing protecting it is simply taken, as in chess. Duels are for protected pieces.
 function freeCapture(B, m) {
   if (!m.cap) return false;
   const a = B[m.fr][m.fc], d = B[m.cap.r][m.cap.c];
-  return !!d && d.t === "P" && a.t !== "K" && backupFor(B, m).d === 0;
+  return !!d && a.t !== "K" && backupFor(B, m).d === 0;
 }
 // A beaten attacker falls back to its own square badly hurt
 const failHp = a => Math.max(1, Math.min(a.hp, Math.ceil(STATS[a.t].hp * 0.25)));
@@ -240,7 +240,7 @@ function finishMove(m, res) {
     S.last = { fr: m.fr, fc: m.fc, tr: m.cap.r, tc: m.cap.c };
   } else {
     if (res) a.hp = Math.max(1, Math.round(res.attackerHp));
-    if (d && !res) log(`${an} captured ${STATS[d.t].name} on ${sqName(m.cap.r, m.cap.c)}. ${a.t === "K" ? "Kings take without a fight." : "An undefended pawn is taken without a fight."}`, "fight");
+    if (d && !res) log(`${an} captured ${STATS[d.t].name} on ${sqName(m.cap.r, m.cap.c)}. ${a.t === "K" ? "Kings take without a fight." : "An unprotected piece is taken without a fight."}`, "fight");
     else if (d) log(`${an} won the duel and took ${sqName(m.tr, m.tc)} with ${a.hp} HP left.`, "fight");
     else if (m.castle) log(`${COLORNAME[a.c]} castled.`);
     else log(`${an} ${sqName(m.fr, m.fc)} to ${sqName(m.tr, m.tc)}.`);
@@ -457,7 +457,7 @@ function render() {
     const odds = duels.map(m => { const k = backupFor(B, m); return `${sqName(m.tr, m.tc)}: backup ${k.a} v ${k.d}`; }).join(", ");
     note.textContent = (duels.length ? `Red rings are duels (${odds}). ` : "") + (free ? "Gold rings are taken with no fight. " : "") + (risky ? "Flashing rings are risky: lose that duel and you lose the game." : "") || "Pick a square to move to.";
     if (risky) note.classList.add("alert");
-  } else note.textContent = "Tap a piece, then a square. Attacking an enemy starts a duel.";
+  } else note.textContent = "Tap a piece, then a square. Attacking a protected piece starts a duel.";
   $("log").innerHTML = S.log.map(l => `<li class="${l.cls}">${l.text}</li>`).join("");
   const meInCheck = !!checkSq && S.turn === CONFIG.human;
   $("checkBanner").hidden = !meInCheck || checkDismissed === S.last;

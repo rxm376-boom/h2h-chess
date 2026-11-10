@@ -405,7 +405,7 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
 <div class="wrap">
   <header class="top">
     <h1>H2H <span class="hl">Chess</span></h1>
-    <p class="tag">Real chess, where contested captures are fought out as arcade duels. Protect your pieces, bring backup, win the fight.</p>
+    <p class="tag">Real chess, where captures of protected pieces are fought out as arcade duels. Protect your pieces, bring backup, win the fight.</p>
     <button type="button" class="sndToggle" aria-label="Sound"></button>
   </header>
 
@@ -458,7 +458,7 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
       <section class="card" aria-live="polite">
         <div class="label">To move</div>
         <div class="turn"><span class="chip w" id="turnChip"></span><span id="turnText">White</span></div>
-        <div class="status-note" id="statusNote">Tap a piece, then a square. Attacking an enemy starts a duel.</div>
+        <div class="status-note" id="statusNote">Tap a piece, then a square. Attacking a protected piece starts a duel.</div>
       </section>
 
       <section class="card">
@@ -526,7 +526,7 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
           <summary>House rules</summary>
           <ul>
             <li>Normal chess moves. A capture starts a duel between the two pieces.</li>
-            <li><b>An undefended pawn is simply taken</b>, with no duel. Every other piece always gets its fight.</li>
+            <li><b>An unprotected piece is simply taken</b>, with no duel. A piece is protected when another piece of its side could recapture on its square. Only protected pieces get a fight.</li>
             <li><b>Backup counts.</b> Each other piece of yours that bears on the square (up to 3) starts your fighter with more SP and makes it hit 12% harder. This works for the attacker and the defender.</li>
             <li>If the attacker wins, it takes the square and keeps whatever HP it ended with. The loser is removed.</li>
             <li>If the attacker loses, the defender stays put and the attacker falls back to its own square with 25% health (or what it had, if that was less).</li>
@@ -1589,11 +1589,11 @@ function backupFor(B, m) {
   const a = B[m.fr][m.fc], N = B.map(row => row.slice()); N[m.fr][m.fc] = null;
   return { a: Math.min(BACKUP_MAX, countAtk(N, m.tr, m.tc, a.c)), d: Math.min(BACKUP_MAX, countAtk(N, m.tr, m.tc, opp(a.c))) };
 }
-// A pawn with nothing protecting it is simply taken, as in chess. Every other piece gets its duel.
+// A piece with nothing protecting it is simply taken, as in chess. Duels are for protected pieces.
 function freeCapture(B, m) {
   if (!m.cap) return false;
   const a = B[m.fr][m.fc], d = B[m.cap.r][m.cap.c];
-  return !!d && d.t === "P" && a.t !== "K" && backupFor(B, m).d === 0;
+  return !!d && a.t !== "K" && backupFor(B, m).d === 0;
 }
 // A beaten attacker falls back to its own square badly hurt
 const failHp = a => Math.max(1, Math.min(a.hp, Math.ceil(STATS[a.t].hp * 0.25)));
@@ -1774,7 +1774,7 @@ function finishMove(m, res) {
     S.last = { fr: m.fr, fc: m.fc, tr: m.cap.r, tc: m.cap.c };
   } else {
     if (res) a.hp = Math.max(1, Math.round(res.attackerHp));
-    if (d && !res) log(`${an} captured ${STATS[d.t].name} on ${sqName(m.cap.r, m.cap.c)}. ${a.t === "K" ? "Kings take without a fight." : "An undefended pawn is taken without a fight."}`, "fight");
+    if (d && !res) log(`${an} captured ${STATS[d.t].name} on ${sqName(m.cap.r, m.cap.c)}. ${a.t === "K" ? "Kings take without a fight." : "An unprotected piece is taken without a fight."}`, "fight");
     else if (d) log(`${an} won the duel and took ${sqName(m.tr, m.tc)} with ${a.hp} HP left.`, "fight");
     else if (m.castle) log(`${COLORNAME[a.c]} castled.`);
     else log(`${an} ${sqName(m.fr, m.fc)} to ${sqName(m.tr, m.tc)}.`);
@@ -1991,7 +1991,7 @@ function render() {
     const odds = duels.map(m => { const k = backupFor(B, m); return `${sqName(m.tr, m.tc)}: backup ${k.a} v ${k.d}`; }).join(", ");
     note.textContent = (duels.length ? `Red rings are duels (${odds}). ` : "") + (free ? "Gold rings are taken with no fight. " : "") + (risky ? "Flashing rings are risky: lose that duel and you lose the game." : "") || "Pick a square to move to.";
     if (risky) note.classList.add("alert");
-  } else note.textContent = "Tap a piece, then a square. Attacking an enemy starts a duel.";
+  } else note.textContent = "Tap a piece, then a square. Attacking a protected piece starts a duel.";
   $("log").innerHTML = S.log.map(l => `<li class="${l.cls}">${l.text}</li>`).join("");
   const meInCheck = !!checkSq && S.turn === CONFIG.human;
   $("checkBanner").hidden = !meInCheck || checkDismissed === S.last;
