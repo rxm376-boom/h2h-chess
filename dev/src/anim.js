@@ -280,7 +280,11 @@ function fighterPose(f, F, time) {
       return poseOver(S, hi ? { lean: -.3 - .3 * a, hip: [-2 - 3 * a, S.hip[1] - 1, 0], hp: -.3 - .4 * a, lh: [5, 42, -10], rh: [-5, 38, 11] } : { lean: .4 + .25 * a, hip: [-4 - 3 * a, S.hip[1] - 3, 0], lh: [7, 29, -4], rh: [5, 28, 5], hp: .4 }); }
   }
   if (st === "ko" || st === "down") return poseOver(S, Object.assign({}, LYING, st === "down" ? {} : { lh: [1, 34, -13], rh: [-1, 30, 13] }));
-  if (st === "fall") { const tum = f.ko ? Math.min(1, t * 2) * .25 : 0, rot = f.juggle > 1 ? 1 : eIO(sat(t / 0.3)); return poseOver(S, { rz: (-1.25 - tum) * rot + Math.sin(t * 9) * .05 - 0.001, hip: [0, 22, 0], lh: [-2, 46, -11], rh: [-4, 42, 11], lf: [9, 4, -5], rf: [5, 1, 6], lean: -.15, hp: -.3, lfp: .5, rfp: .5 }); }
+  if (st === "fall") { const rot = f.juggle > 1 ? 1 : eIO(sat(t / 0.3)), up = sat(-f.vy / 260), dn = sat(f.vy / 260), w = Math.sin(t * 11), tum = f.ko ? Math.min(1.6, t * 2.4) : dn * .35;
+    // rising: chest up, limbs trailing below; falling: back arched, legs kicked up, arms flung wide
+    return poseOver(S, { rz: (-0.95 - tum - dn * .3) * rot - 0.001, hip: [0, 22, 0], lean: -.1 - dn * .35 + up * .25, hp: -.3 - dn * .3,
+      lh: [-2 - up * 6, 46 - up * 14 + dn * 8 + w * 2, -11 - dn * 3], rh: [-4 - up * 6, 42 - up * 14 + dn * 10 - w * 2, 11 + dn * 3],
+      lf: [9 + dn * 8, 4 - up * 5 + dn * 9 + w * 2, -5], rf: [5 + dn * 4, 1 - up * 5 + dn * 5 - w * 2, 6], lfp: .5, rfp: .5 }); }
   if (st === "getup") { const k = eIO(sat(1 - f.st / 0.3)); return poseMix(poseOver(S, LYING), poseOver(S, { hip: [0, 20, 0], lean: .45, lh: [10, 10, -8], rh: [6, 28, 7] }), k); }
   if (st === "win") return winPose(f, t);
   if (st === "lose") return poseMix(idlePose(f, time), poseOver(S, { hip: [-2, 15, 0], lf: [8, 0, -4], rf: [-10, 0, 5], rfp: .9, lh: [9, 5, -7], rh: [4, 22, 8], lean: .62, hp: .65 }), eIO(sat(t / 0.5)));
@@ -345,9 +349,12 @@ function fighterPose(f, F, time) {
   }
   if (st === "crouch") return poseOver(S, { hip: [0, 19.5, 0], lean: .32, lh: [14, 32, -4], rh: [8, 33, 6], hp: .1 });
   if (st === "jump") return jumpPose(f, S);
+  if (st === "land" && f.finT != null && F.t - f.finT < 0.5) return poseMix(RAGE_FIN[f.t].hit, poseOver(S), eIO(sat((t - 0.22) / 0.2))); // hold the finisher, each piece its own
   if (st === "land") return poseOver(S, { hip: [0, S.hip[1] - 6, 0], lean: S.lean + .2, lh: [14, 34, -7], rh: [6, 34, 8] });
   if (st === "walk") return walkPose(f, time);
-  return idlePose(f, time);
+  const idle = idlePose(f, time);
+  if (f.t === "B") { const o = F.att === f ? F.def : F.att; if (Math.abs(o.x - f.x) < 50) { idle.sd = [0.22, 1, 0]; idle.lh = [11, 45, -3]; idle.rh = [5, 29, 6]; } } // staff held upright at close range so it does not skewer the opponent
+  return idle;
 }
 function jumpPose(f, S) {
   const up = f.vy < -40, p = poseOver(S, up ? { lf: [7, 12, -3], rf: [-3, 9, 4], lh: [10, 48, -8], rh: [0, 48, 9], lean: S.lean + .1, lfp: .6, rfp: .6 }

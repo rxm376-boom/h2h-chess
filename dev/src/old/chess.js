@@ -100,15 +100,15 @@ function allLegal(St, color) {
 // Chance the attacker wins a duel. DUEL_ODDS holds measured CPU-vs-CPU win rates at full health
 // (thousands of simulated duels per pairing); the health each piece has left then shifts the odds.
 const DUEL_ODDS = {
-  P: { P: .50, N: .15, B: .15, R: .10, Q: .06 },
-  N: { P: .85, N: .50, B: .54, R: .44, Q: .28 },
-  B: { P: .85, N: .46, B: .50, R: .37, Q: .23 },
-  R: { P: .90, N: .56, B: .63, R: .50, Q: .35 },
-  Q: { P: .94, N: .72, B: .77, R: .65, Q: .50 },
+  P: { P: .50, N: .13, B: .16, R: .12, Q: .07 },
+  N: { P: .85, N: .50, B: .52, R: .50, Q: .31 },
+  B: { P: .82, N: .48, B: .50, R: .40, Q: .22 },
+  R: { P: .88, N: .50, B: .60, R: .50, Q: .34 },
+  Q: { P: .93, N: .69, B: .78, R: .66, Q: .50 },
 };
 function duelOdds(a, d) {
   const p0 = DUEL_ODDS[a.t][d.t], fa = a.hp / STATS[a.t].hp, fd = d.hp / STATS[d.t].hp;
-  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), 1.8);
+  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), 1.5);
   return odds / (1 + odds);
 }
 function evalBoard(B, me) {
@@ -164,11 +164,12 @@ function maybeCpuTurn() {
   if (!isCpuTurn() || fight) return;
   render();
   const g = gameGen; // a new game started while a CPU move is pending must cancel it
+  const beat = performance.now() - lastDuelEnd < 600 ? 900 : 0; // let the board breathe after a duel before the CPU replies
   setTimeout(() => {
     if (g !== gameGen || !isCpuTurn() || fight || clashing) return;
     const m = chooseCpuMove(S.turn);
     if (m) { selected = [m.fr, m.fc]; targets = [m]; render(); setTimeout(() => { if (g === gameGen && !fight && !clashing) attemptMove(m); }, 420); }
-  }, 380);
+  }, 380 + beat);
 }
 
 /* ---------- Turn flow ---------- */
@@ -185,7 +186,7 @@ function attemptMove(m) {
   // the arena loads behind it, and after the duel a shutter wipe returns to the same square before pulling back out.
   boardFocus(m.cap, 1);
   clash3D(m, () => vsCard(a, d,
-    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0 }); },
+    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); lastDuelEnd = performance.now(); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0 }); },
     () => { if (fight) fight.hold = false; }));
 }
 
@@ -255,7 +256,7 @@ function healSide(color) {
 /* ---------- Board UI ---------- */
 const $ = id => document.getElementById(id);
 const boardEl = $("board");
-let selected = null, targets = [], clashing = false, B3 = null, gameGen = 0;
+let selected = null, targets = [], clashing = false, B3 = null, gameGen = 0, lastDuelEnd = -1e9;
 const squares = [];
 for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
   const b = document.createElement("button");

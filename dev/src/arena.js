@@ -35,7 +35,7 @@ function setup3D(F) {
   R3.post = { dark: 0, tint: 0, desat: 0 };
 }
 function teardown3D() {
-  if (!R3.ok) return;
+  if (!R3.renderer) return;
   const kill = o => { R3.scene.remove(o); o.traverse(c => { if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose(); }); };
   for (const m of R3.models) kill(m.root);
   R3.models = [];
@@ -264,8 +264,8 @@ function draw3D(F) {
   const fdt = rdt * (frozen ? 0.5 : F.phase === "outro" && F.slow > 0 ? 0.3 : 1);
   R3.time += fdt; const time = R3.time;
   // quality step-down: if the fight runs under ~38 fps for a while, drop resolution first, then bloom and shadows
-  if (F.phase === "fight" && !F.cine && !navigator.webdriver) { const Q = R3.q || (R3.q = { n: 0, acc: 0, lvl: 0 }); Q.n++; Q.acc += now - (Q.prev || now); Q.prev = now;
-    if (Q.n >= 80) { if (Q.acc / (Q.n - 1) > 26 && Q.lvl < 2) { Q.lvl++; if (Q.lvl === 1) { R3.qScale = 0.67; resize3D(); } else { if (R3.bloom) R3.bloom.enabled = false; R3.renderer.shadowMap.enabled = false; R3.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } } Q.n = 0; Q.acc = 0; } }
+  if (F.phase === "fight" && !F.cine && !navigator.webdriver) { const Q = R3.q || (R3.q = { n: 0, acc: 0, lvl: 0 }); const gap = now - (Q.prev || now); Q.prev = now; if (gap < 250) { Q.n++; Q.acc += gap; } else { Q.n = 0; Q.acc = 0; }
+    if (Q.n >= 80) { if (Q.acc / Q.n > 26 && Q.lvl < 2) { Q.lvl++; if (Q.lvl === 1) { R3.qScale = 0.67; resize3D(); } else { if (R3.bloom) R3.bloom.enabled = false; R3.renderer.shadowMap.enabled = false; R3.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } } Q.n = 0; Q.acc = 0; } }
   else if (R3.q) R3.q.prev = 0;
   for (const e of F.events) handleEvent(F, e);
   for (const m of R3.models) {

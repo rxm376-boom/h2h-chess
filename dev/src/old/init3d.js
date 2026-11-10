@@ -144,7 +144,7 @@ function init3D() {
     // a phone can drop the GL context mid-duel: fall back to the flat renderer until it comes back
     const cvs = renderer.domElement;
     cvs.addEventListener("webglcontextlost", e => { e.preventDefault(); R3.ok = false; R3.lost = true; layer.classList.remove("three"); });
-    cvs.addEventListener("webglcontextrestored", () => { if (!R3.lost) return; R3.lost = false; R3.ok = true; R3.last = performance.now(); if (fight) { layer.classList.add("three"); resize3D(); } });
+    cvs.addEventListener("webglcontextrestored", () => { if (!R3.lost) return; R3.lost = false; R3.ok = true; R3.last = performance.now(); if (fight) { layer.classList.add("three"); resize3D(); if (!R3.models.length || R3.models[0].f !== fight.f.w) setup3D(fight); } });
     return true;
   } catch (e) { console.warn("3D unavailable, using pixel renderer", e); R3.ok = false; return false; }
 }

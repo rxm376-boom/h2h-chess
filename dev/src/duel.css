@@ -94,6 +94,8 @@
 @keyframes annWin { 0% { opacity: 0; transform: translate(-12%, -50%); } 10% { opacity: 1; transform: translate(0, -50%); } 100% { opacity: 1; transform: translate(1.5%, -50%); } }
 .annSub { left: 0; right: 0; top: 80.5%; text-align: center; font: 600 calc(var(--u) * 2.7) / 1 var(--font-hud); letter-spacing: .3em; text-transform: uppercase; color: #fff; text-shadow: 0 calc(var(--u) * .2) 0 #000, 0 0 calc(var(--u) * 1) #000; }
 .annSub.go { animation: subIn 2.4s .25s both; }
+.annSub.tip.go { animation: tipIn 2.8s .2s both; }
+@keyframes tipIn { 0% { opacity: 0; } 10%, 78% { opacity: 1; } 100% { opacity: 0; } }
 .annSub.tip { top: 66%; font-size: max(10px, calc(var(--u) * 2.1)); letter-spacing: .1em; color: #ffe9a8; }
 @keyframes subIn { 0% { opacity: 0; letter-spacing: .8em; } 14%, 100% { opacity: 1; letter-spacing: .3em; } }
 
@@ -175,7 +177,8 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
   .touchmode .cab { width: min(100%, calc((100dvh - 12px) * 16 / 9)); }
   .touchmode .touch { position: fixed; left: max(6px, env(safe-area-inset-left, 0px)); right: max(6px, env(safe-area-inset-right, 0px)); bottom: max(8px, env(safe-area-inset-bottom, 0px)); padding: 0; pointer-events: none; z-index: 4; }
   .touchmode .touch > * { pointer-events: auto; }
-  .touchmode .stick { opacity: .8; width: 118px; height: 118px; }
+  .touchmode .stick { opacity: .8; width: 104px; height: 104px; }
+  .touchmode .cab { width: min(100%, calc(100vw - 196px), calc((100dvh - 12px) * 16 / 9)); }
   .touchmode .pad { opacity: .88; grid-template-columns: repeat(2, 56px); grid-template-rows: repeat(3, 56px); gap: 6px; }
   .touchmode .pad .b-p { grid-column: 1; grid-row: 3; } .touchmode .pad .b-k { grid-column: 2; grid-row: 3; }
   .touchmode .pad .b-t { grid-column: 1; grid-row: 2; } .touchmode .pad .b-x { grid-column: 2; grid-row: 2; }
