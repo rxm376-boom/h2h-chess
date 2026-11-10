@@ -409,7 +409,7 @@ function recordGame() {
   if (!S.over || S.recorded) return;
   S.recorded = true;
   const p = me(); if (!p) return;
-  const human = CONFIG.human, opp = CPU_ELO[CONFIG.level] || 1300;
+  const human = CONFIG.human, opp = NET.peerName && S.online ? NET.peerRating : CPU_ELO[CONFIG.level] || 1300;
   const score = S.over.winner == null ? 0.5 : S.over.winner === human ? 1 : 0;
   const expected = 1 / (1 + Math.pow(10, (opp - p.rating) / 400));
   const K = p.games < 10 ? 40 : 24;
@@ -419,7 +419,7 @@ function recordGame() {
   else if (score === 0) { p.losses++; p.streak = p.streak < 0 ? p.streak - 1 : -1; }
   else { p.draws++; p.streak = 0; }
   ACCT.lastDelta = delta;
-  log(`${p.name}: ${score === 1 ? "win" : score === 0 ? "loss" : "draw"} vs ${["Easy", "Normal", "Hard"][CONFIG.level]} CPU, rating ${delta >= 0 ? "+" : ""}${delta} to ${p.rating}.`, score === 1 ? "heal" : "fight");
+  log(`${p.name}: ${score === 1 ? "win" : score === 0 ? "loss" : "draw"} vs ${S.online ? S.online : ["Easy", "Normal", "Hard"][CONFIG.level] + " CPU"}, rating ${delta >= 0 ? "+" : ""}${delta} to ${p.rating}.`, score === 1 ? "heal" : "fight");
   persist(); renderAccount();
 }
 // small dialog helper: text prompt or confirm
@@ -471,7 +471,7 @@ $("goView").addEventListener("click", () => { $("gameOver").hidden = true; });
 window.addEventListener("keydown", e => { if (e.key === "Escape" && !$("gameOver").hidden) $("gameOver").hidden = true; });
 
 /* ---------- Test hook ---------- */
-window.__h2h = { get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
+window.__h2h = { NET, get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
 
 /* ---------- Boot ---------- */
 function start(data) {

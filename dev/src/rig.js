@@ -240,6 +240,21 @@ function buildHead(t, M, mdl) {
   const T = THREE, h = new T.Group();
   const add = (geo, mat, x, y, z, sx, sy, sz, parent) => { const m = new T.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); m.scale.set(sx ?? 1, sy ?? sx ?? 1, sz ?? sx ?? 1); m.castShadow = true; (parent || h).add(m); return m; };
   const eyes = (x, y, z, r, sx) => { add(G3.sph, M.eye, x, y, z, r * (sx || 1), r, r); add(G3.sph, M.eye, x, y, -z, r * (sx || 1), r, r); };
+  // a carved face: deep sockets with small lit eyes, slanted brows, a nose ridge, cheeks, a mouth line and a jaw
+  const face = (x, y, w, o) => {
+    o = o || {};
+    for (const s of [-1, 1]) {
+      add(G3.sph, M.dark, x - 0.05, y, s * w, 0.09, 0.075, 0.125);
+      add(G3.sph, M.eye, x + 0.005, y - 0.008, s * w, 0.045, 0.036, 0.078);
+      const br = add(G3.box, o.brow || M.shade, x + 0.02, y + 0.105, s * (w + 0.01), 0.13, 0.055, 0.29); br.rotation.x = -s * (o.tilt ?? 0.32);
+      add(G3.sph, M.body, x - 0.21, y - 0.19, s * (w + 0.09), 0.13, 0.1, 0.14);
+    }
+    const nw = o.nose ?? 1, nose = add(G3.box, M.body, x + 0.03, y - 0.1, 0, 0.09, 0.25, 0.075 * nw); nose.rotation.z = -0.28;
+    add(G3.sph, M.body, x + 0.035, y - 0.21, 0, 0.055, 0.042, 0.075 * nw);
+    if (o.lips) add(G3.sph, o.lips, x - 0.055, y - 0.335, 0, 0.05, 0.034, o.mouth ?? 0.2); else add(G3.box, M.dark, x - 0.045, y - 0.34, 0, 0.05, 0.022, o.mouth ?? 0.24);
+    add(G3.sph, M.body, x - 0.3 + (o.jx || 0), y - 0.38, 0, 0.27, 0.28, o.jaw ?? 0.4);
+    add(G3.sph, M.body, x - 0.15 + (o.jx || 0), y - 0.52, 0, 0.12, 0.09, 0.15);
+  };
   if (t === "P") {
     add(G3.sph, M.body, 0, -0.05, 0, 0.76);
     add(new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), M.armor, 0, 0.05, 0, 0.86, 0.8, 0.86);
@@ -247,10 +262,10 @@ function buildHead(t, M, mdl) {
     add(new T.TorusGeometry(1.23, 0.05, 6, 32), M.trim, 0, 0.05, 0).rotation.x = Math.PI / 2;
     add(G3.box, M.trim, 0, 0.5, 0, 1.1, 0.1, 0.12);
     add(G3.sph, M.trim, 0, 0.88, 0, 0.12);
-    add(G3.box, M.dark, 0.62, -0.14, 0, 0.3, 0.2, 0.8);
-    eyes(0.7, -0.14, 0.24, 0.1, 0.7);
+    face(0.72, -0.14, 0.23, { tilt: 0.2, jaw: 0.46 });
+    add(G3.box, M.armor, 0.86, 0.0, 0, 0.07, 0.3, 0.09); // nose guard
     add(new T.TorusGeometry(0.6, 0.15, 10, 24), M.trim, 0, -0.68, 0).rotation.x = Math.PI / 2;
-    add(G3.box, M.armor, 0.55, -0.5, 0, 0.3, 0.34, 0.7); // chin guard
+    for (const z of [-0.6, 0.6]) add(G3.box, M.leather, 0.2, -0.4, z, 0.12, 0.7, 0.06).rotation.z = 0.5; // chin strap
   } else if (t === "N") {
     const s = new T.Shape();
     const pts = [[-0.6, -0.9], [-0.72, 0.2], [-0.5, 0.85], [-0.2, 1.15], [-0.05, 1.5], [0.12, 1.0], [0.6, 0.78], [1.25, 0.28], [1.42, -0.05], [1.25, -0.32], [0.62, -0.25], [0.32, -0.55], [0.22, -0.9]];
@@ -262,8 +277,14 @@ function buildHead(t, M, mdl) {
     add(G3.box, M.trim, 0.85, 0.42, 0, 0.95, 0.04, 0.94).rotation.z = -0.45;
     add(G3.box, M.leather, 0.85, -0.1, 0, 0.08, 0.6, 1.02);
     add(G3.sph, M.trim, 0.85, -0.1, 0.52, 0.08); add(G3.sph, M.trim, 0.85, -0.1, -0.52, 0.08);
-    eyes(0.45, 0.5, 0.47, 0.11, 1.4);
-    add(G3.sph, M.dark, 1.32, -0.05, 0.22, 0.06); add(G3.sph, M.dark, 1.32, -0.05, -0.22, 0.06);
+    for (const z of [-1, 1]) {
+      add(G3.sph, M.dark, 0.43, 0.5, z * 0.45, 0.17, 0.12, 0.07);
+      add(G3.sph, M.eye, 0.45, 0.49, z * 0.485, 0.1, 0.065, 0.05);
+      add(G3.box, M.shade, 0.47, 0.65, z * 0.47, 0.42, 0.09, 0.12).rotation.z = -0.5; // heavy brow
+      add(G3.sph, M.shade, 0.1, -0.1, z * 0.4, 0.42, 0.46, 0.14); // cheek
+      add(G3.sph, M.dark, 1.33, -0.02, z * 0.25, 0.08, 0.05, 0.05); // nostril
+      add(G3.box, M.dark, 1.02, -0.3, z * 0.47, 0.5, 0.025, 0.03).rotation.z = 0.12; // mouth line
+    }
     for (const z of [-0.3, 0.3]) { const ear = add(new T.ConeGeometry(0.14, 0.42, 8), M.body, -0.08, 1.5, z); ear.rotation.x = z; }
     mdl.mane = [];
     for (let i = 0; i < 7; i++) {
@@ -279,8 +300,8 @@ function buildHead(t, M, mdl) {
     add(G3.box, M.trim, 0.58, 0.8, 0, 0.06, 1.1, 0.12).rotation.z = -0.2;
     add(G3.sph, M.gem, 0.6, 0.72, 0, 0.12, 0.16, 0.12);
     add(G3.sph, M.trim, 0, 1.9, 0, 0.15);
-    add(G3.box, M.dark, 0.5, -0.12, 0, 0.3, 0.16, 0.7);
-    eyes(0.56, -0.12, 0.2, 0.08, 1.3);
+    face(0.57, -0.1, 0.19, { tilt: 0.12, jaw: 0.34, mouth: 0.18 });
+    add(G3.sph, M.hair, 0.42, -0.62, 0, 0.16, 0.3, 0.2); // pointed beard
     add(lathe([[0.62, 0.2], [0.72, -0.5], [0.5, -0.85]], 16, Math.PI * 1.0, Math.PI), M.robe); // hood drape at the back
     const halo = new T.Group(); halo.position.set(-0.55, 0.65, 0); halo.rotation.y = Math.PI / 2; h.add(halo); mdl.halo = halo;
     add(new T.TorusGeometry(1.15, 0.04, 6, 48), M.glow, 0, 0, 0, 1, 1, 1, halo);
@@ -291,7 +312,7 @@ function buildHead(t, M, mdl) {
     add(new T.CylinderGeometry(0.88, 0.88, 0.12, 8), M.trim, 0, -0.68, 0);
     add(new T.CylinderGeometry(0.87, 0.87, 0.08, 8), M.trim, 0, 0.76, 0);
     add(G3.box, M.dark, 0.76, 0.12, 0, 0.14, 0.26, 1.1);
-    add(G3.box, M.eye, 0.82, 0.12, 0, 0.04, 0.09, 0.95);
+    for (const z of [-1, 1]) { add(G3.box, M.eye, 0.82, 0.12, z * 0.24, 0.04, 0.085, 0.3).rotation.x = -z * 0.22; add(G3.box, M.stone, 0.8, 0.33, z * 0.27, 0.16, 0.14, 0.5).rotation.x = -z * 0.3; }
     add(G3.box, M.armor, 0.82, -0.25, 0, 0.1, 0.5, 0.18);
   } else if (t === "Q") {
     add(G3.sph, M.body, 0, 0, 0, 0.64);
@@ -305,8 +326,7 @@ function buildHead(t, M, mdl) {
       sp.rotation.set(Math.sin(an) * 0.2, 0, -Math.cos(an) * 0.2);
     }
     add(G3.sph, M.gem, 0.62, 0.58, 0, 0.12, 0.14, 0.1);
-    add(G3.box, M.dark, 0.5, 0.04, 0, 0.3, 0.13, 0.62);
-    eyes(0.58, 0.04, 0.2, 0.075, 1.3);
+    face(0.6, 0.06, 0.19, { tilt: 0.2, jaw: 0.3, mouth: 0.1, brow: M.hair, jx: 0.02, nose: 0.75, lips: M.cloth });
     add(G3.sph, M.trim, 0.05, -0.45, 0.62, 0.07); add(G3.sph, M.trim, 0.05, -0.45, -0.62, 0.07);
   }
   return h;

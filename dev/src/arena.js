@@ -3,12 +3,14 @@ function stageExtras() {
   const T = THREE, scene = R3.scene;
   const colMat = new T.MeshStandardMaterial({ color: 0x2a2244, roughness: 0.35, metalness: 0.3, map: marble("#3a3058", "#8a7ab0", 51) });
   const gold = new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 });
+  const col0 = scene.children.length;
   for (let i = -3; i <= 3; i++) {
     if (i === 0) continue;
     const x = i * 11 + (i > 0 ? -3 : 3);
     const col = new T.Mesh(lathe([[1.5, 0], [1.5, 0.5], [1.15, 0.9], [1.0, 1.4], [0.92, 15], [1.2, 15.5], [1.5, 16], [1.5, 17]], 18), colMat); col.position.set(x, 0, -10.5); col.castShadow = true; scene.add(col);
     for (const y of [1.1, 15.2]) { const r = new T.Mesh(new T.TorusGeometry(1.08, 0.1, 8, 24), gold); r.rotation.x = Math.PI / 2; r.position.set(x, y, -10.5); scene.add(r); }
   }
+  R3.colObjs = scene.children.slice(col0);
   const inlay = new T.Mesh(new T.RingGeometry(13.2, 13.5, 96), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.3, transparent: true, opacity: 0.85 }));
   inlay.rotation.x = -Math.PI / 2; inlay.position.set(0, 0.012, 0); scene.add(inlay);
   const inlay2 = new T.Mesh(new T.RingGeometry(6.0, 6.12, 72), inlay.material); inlay2.rotation.x = -Math.PI / 2; inlay2.position.set(0, 0.012, 0); scene.add(inlay2);
@@ -19,15 +21,10 @@ function stageExtras() {
   // dark veil used when the camera isolates a fighter
   R3.winMats = []; scene.traverse(o => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex() === 0x5a4cc0 && !R3.winMats.includes(o.material)) R3.winMats.push(o.material); });
 }
-function setStage(light) { // a duel on a light square is fought in the gold-lit hall, on a dark square in the violet one
-  if (!R3.ok) return;
-  for (const m of R3.winMats) { m.emissive.setHex(light ? 0xc89a46 : 0x5a4cc0); m.emissiveIntensity = light ? 0.5 : 0.55; }
-  R3.scene.background.setHex(light ? 0x120c14 : 0x0a0716); R3.scene.fog.color.setHex(light ? 0x120c14 : 0x0a0716);
-}
 function setup3D(F) {
   teardown3D();
   if (!R3.blobs) stageExtras();
-  setStage(F.lightSq);
+  applyStage(F.stage || 0, F.lightSq);
   R3.models = [buildModel(F.f.w), buildModel(F.f.b)];
   for (const m of R3.models) m.introAt = m.f.isAtt ? F.intro.tA : F.intro.tD;
   R3.cam = { x: 0, y: 4.5, z: 24, lx: 0, ly: 3.5 }; R3.shot = null; R3.shake = 0; R3.punch = 0;

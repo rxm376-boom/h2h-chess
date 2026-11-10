@@ -163,6 +163,7 @@ function chooseCpuMove(color) {
 }
 const isCpuTurn = () => S.turn === cpuColor() && !S.over;
 function maybeCpuTurn() {
+  if (NET.on) { netPump(); return; }
   if (!isCpuTurn() || fight) return;
   render();
   const g = gameGen; // a new game started while a CPU move is pending must cancel it
@@ -181,6 +182,7 @@ function attemptMove(m) {
   const B = S.board, a = B[m.fr][m.fc];
   const d = m.cap ? B[m.cap.r][m.cap.c] : null;
   selected = null; targets = [];
+  netSendMove(m);
   if (!d || a.t === "K") { finishMove(m, null); return; }
   render();
   clashing = true;
@@ -188,7 +190,7 @@ function attemptMove(m) {
   // the arena loads behind it, and after the duel a shutter wipe returns to the same square before pulling back out.
   boardFocus(m.cap, 1);
   clash3D(m, () => vsCard(a, d,
-    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); lastDuelEnd = performance.now(); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0 }); },
+    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); lastDuelEnd = performance.now(); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0, stage: stageFor(m.cap.r, m.cap.c) }); },
     () => { if (fight) fight.hold = false; }));
 }
 
@@ -332,11 +334,11 @@ function render() {
     el.innerHTML = html;
   }
   $("turnChip").className = "chip " + S.turn;
-  $("turnText").textContent = S.over ? "Game over" : COLORNAME[S.turn] + (S.turn === CONFIG.human ? " (you)" : " (CPU)");
+  $("turnText").textContent = S.over ? "Game over" : COLORNAME[S.turn] + (S.turn === CONFIG.human ? " (you)" : NET.on ? ` (${NET.peerName})` : " (CPU)");
   const note = $("statusNote");
   note.className = "status-note";
   if (S.over) { note.textContent = S.over.reason; note.classList.add("win"); }
-  else if (isCpuTurn()) note.textContent = checkSq ? "CPU is in check and thinking." : "CPU is thinking.";
+  else if (isCpuTurn()) note.textContent = NET.on ? `Waiting for ${NET.peerName} to move.` : checkSq ? "CPU is in check and thinking." : "CPU is thinking.";
   else if (checkSq) { note.textContent = "You're in check! Get your king out of danger. Losing a duel while still in check loses the game."; note.classList.add("alert"); }
   else if (selected) {
     const caps = targets.filter(m => m.cap).length;
@@ -379,6 +381,7 @@ function newGame() {
   if (fight || clashing) return; // never swap the board out from under a duel hand-off
   gameGen++;
   S = newState(); selected = null; targets = [];
+  nextId = 1;
   log(`New game. You play ${COLORNAME[CONFIG.human]}.`);
   render(); showStats(S.board[7][1]); maybeCpuTurn();
 }

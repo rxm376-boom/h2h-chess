@@ -31,7 +31,7 @@ function init3D() {
       pm.dispose();
     } catch (e) { console.warn("env map skipped", e); }
 
-    scene.add(new T.HemisphereLight(0xb8b0e0, 0x1a1428, 0.25));
+    const hemi = new T.HemisphereLight(0xb8b0e0, 0x1a1428, 0.25); scene.add(hemi);
     const key = new T.DirectionalLight(0xfff0d8, 1.25); key.position.set(-8, 16, 14); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -22, right: 22, top: 14, bottom: -6, near: 1, far: 60 }); key.shadow.bias = -0.0006;
     scene.add(key);
@@ -39,6 +39,7 @@ function init3D() {
     const rim2 = new T.DirectionalLight(0x6f8cff, 0.7); rim2.position.set(-12, 6, -10); scene.add(rim2);
     const fill = new T.PointLight(0x7a6ac8, 0.6, 45); fill.position.set(0, 7, 12); scene.add(fill);
     const fxLight = new T.PointLight(0xffd8a0, 0, 16, 2); fxLight.position.set(0, 3, 2); scene.add(fxLight);
+    R3.lights = { hemi, key, rim, rim2, fill };
 
     // Marble checker floor
     const floorTex = canvasTex(512, 512, (g) => {
@@ -53,13 +54,14 @@ function init3D() {
     });
     floorTex.repeat.set(11, 4);
     const floor = new T.Mesh(new T.PlaneGeometry(88, 32), new T.MeshStandardMaterial({ map: floorTex, roughness: 0.3, metalness: 0.1, envMapIntensity: 0.35 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(1, 0, -4); floor.receiveShadow = true; scene.add(floor);
+    floor.rotation.x = -Math.PI / 2; floor.position.set(1, 0, -4); floor.receiveShadow = true; scene.add(floor); R3.floor = floor;
     const edge = new T.Mesh(new T.BoxGeometry(88, 0.3, 0.4), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 }));
     edge.position.set(0, 0.15, -20); scene.add(edge);
 
+    const hall0 = scene.children.length;
     // Hall: back wall, glowing windows with light shafts, banners, giant pieces
     const wall = new T.Mesh(new T.PlaneGeometry(140, 50), new T.MeshStandardMaterial({ color: 0x1b1534, roughness: 0.95, map: bricks("#221b3e", "#120d24") }));
-    wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall);
+    wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall); R3.wall = wall; R3.banMats = null;
     const winMat = new T.MeshStandardMaterial({ color: 0x000000, emissive: 0x5a4cc0, emissiveIntensity: 0.55 }), barMat = new T.MeshBasicMaterial({ color: 0x120d24 });
     const shaftMat = new T.MeshBasicMaterial({ color: 0x7a6ae0, transparent: true, opacity: 0.022, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide });
     const banMat = new T.MeshStandardMaterial({ color: 0x7a1424, roughness: 0.8, side: T.DoubleSide }), banMat2 = new T.MeshStandardMaterial({ color: 0x2a1450, roughness: 0.8, side: T.DoubleSide });
@@ -87,6 +89,7 @@ function init3D() {
       if (k === "R") for (let a = 0; a < 4; a++) { const c = new T.Mesh(new T.BoxGeometry(0.6, 0.7, 0.6), bgMat); c.scale.setScalar(0.86); c.position.set(x + Math.cos(a * Math.PI / 2) * 1.6, 9.95, -18 + Math.sin(a * Math.PI / 2) * 1.6); scene.add(c); }
       if (k === "K") { const c1 = new T.Mesh(new T.BoxGeometry(0.35, 1.6, 0.35), bgMat); c1.scale.setScalar(0.86); c1.position.set(x, 12.4, -18); scene.add(c1); const c2 = new T.Mesh(new T.BoxGeometry(1.1, 0.35, 0.35), bgMat); c2.scale.setScalar(0.86); c2.position.set(x, 12.6, -18); scene.add(c2); }
     });
+    R3.hallObjs = scene.children.slice(hall0); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
     // Braziers at the arena edges
     R3.braziers = [];
     for (const x of [wx(WALL_L) - 0.6, wx(WALL_R) + 0.6]) {

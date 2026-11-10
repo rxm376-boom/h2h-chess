@@ -50,12 +50,38 @@
       </section>
 
       <section class="card">
-        <div class="label">Match vs CPU</div>
+        <div class="label" id="matchLabel">Match vs CPU</div>
         <div class="row"><label for="side">You play</label>
           <select id="side"><option value="w">White</option><option value="b">Black</option></select></div>
         <div class="row"><label for="level">CPU level</label>
           <select id="level"><option value="0">Easy</option><option value="1" selected>Normal</option><option value="2">Hard</option></select></div>
         <div class="row"><button class="btn" id="newGame" type="button">New game</button><span class="hint">Changing side starts a new game.</span></div>
+      </section>
+
+      <section class="card" id="onlineCard">
+        <div class="label">Play online</div>
+        <div id="netIdle">
+          <div class="hint">Play a friend on another device. One of you creates a room and shares the code.</div>
+          <div class="row wrapbtns"><button class="btn" id="netCreate" type="button">Create room</button><button class="btn ghost" id="netJoin" type="button">Join room</button></div>
+        </div>
+        <div id="netBusy" hidden>
+          <div class="netCode" id="netCode" hidden></div>
+          <div class="status-note" id="netStatus" aria-live="polite"></div>
+          <div class="row"><button class="btn ghost" id="netLeave" type="button">Leave</button></div>
+        </div>
+      </section>
+
+      <section class="card" id="practiceCard">
+        <div class="label">Practice</div>
+        <div class="row"><label for="prMe">Your fighter</label>
+          <select id="prMe" class="wide"><option value="P">Pawn</option><option value="N" selected>Knight</option><option value="B">Bishop</option><option value="R">Rook</option><option value="Q">Queen</option></select></div>
+        <div class="row"><label for="prOpp">Opponent</label>
+          <select id="prOpp" class="wide"><option value="P">Pawn</option><option value="N">Knight</option><option value="B">Bishop</option><option value="R" selected>Rook</option><option value="Q">Queen</option></select></div>
+        <div class="row"><label for="prAi">It will</label>
+          <select id="prAi" class="wide"><option value="dummy" selected>Stand still</option><option value="0">Fight back (Easy)</option><option value="1">Fight back (Normal)</option><option value="2">Fight back (Hard)</option></select></div>
+        <div class="row"><label for="prStage">Arena</label>
+          <select id="prStage" class="wide"><option value="0">Grand Hall</option><option value="1">Moonlit Courtyard</option><option value="2">Throne Vault</option></select></div>
+        <div class="row"><button class="btn" id="prGo" type="button">Start practice</button><span class="hint">Does not touch your chess game.</span></div>
       </section>
 
       <section class="card">
@@ -132,6 +158,9 @@
         <div class="hudFlash" id="hudFlash"></div>
         <button type="button" class="sndToggle" aria-label="Sound"></button>
         <button type="button" id="skipBtn" hidden>SKIP INTRO</button>
+        <button type="button" id="exitBtn" hidden>EXIT</button><button type="button" id="movesBtn" hidden>MOVES</button>
+        <div class="pMoves" id="pMoves" hidden><dl id="pMovesList"></dl></div>
+        <div class="netWait" id="netWait" hidden>WAITING FOR RIVAL</div>
       </div>
     </div>
     <div class="keys">

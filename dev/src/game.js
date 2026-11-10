@@ -5,6 +5,8 @@
 const layer = $("fightLayer"), hud = $("hud"), screenEl = $("screen");
 const cv = $("arena"), ctx = cv.getContext("2d");
 let fight = null;
+// who sits on the other side: the chess CPU, an online rival, or a practice partner
+const whoIs = c => c === CONFIG.human ? "YOU" : NET.on ? "RIVAL" : fight && fight.practice && !fight.f[c].ai ? "DUMMY" : "CPU";
 
 /* ---------- input: keyboard + touch, merged ---------- */
 const keys = new Set(), pressed = new Set();
@@ -194,7 +196,7 @@ function hudSetup(F) {
   for (const c of ["w", "b"]) {
     const f = F.f[c], s = H.side[c];
     s.gly.textContent = GLYPH[f.t] + VS; s.nm.textContent = `${COLORNAME[c]} ${f.s.name}`;
-    s.role.textContent = (f.isAtt ? "ATTACKER" : "DEFENDER") + (f.ai ? " · CPU" : " · YOU"); s.role.className = "role " + (f.isAtt ? "att" : "def");
+    s.role.textContent = (F.practice ? "" : (f.isAtt ? "ATTACKER" : "DEFENDER") + " · ") + whoIs(c); s.role.className = "role " + (f.isAtt ? "att" : "def");
     s.lag.style.transition = "none"; s.lag.style.width = s.fill.style.width = (f.hp / f.max * 100) + "%"; void s.lag.offsetWidth; s.lag.style.transition = "";
     s.combo.className = "combo " + c; s.call.className = "callo " + c; s.tag.textContent = "";
     f.hudHp = -1;
@@ -261,21 +263,25 @@ function hudEvent(F, e) {
 /* ---------- round flow ---------- */
 function startFight(att, def, onDone, opts) {
   keys.clear(); pressed.clear(); touch.pressed.clear(); touch.held = { l: 0, r: 0, u: 0, d: 0 };
-  const lv = c => (c === CONFIG.human ? null : CONFIG.level);
-  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, CONFIG.fightSeconds);
+  const lv = c => (c === CONFIG.human || NET.on ? null : opts && opts.ai !== undefined ? opts.ai : CONFIG.level);
+  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, opts && opts.seconds || CONFIG.fightSeconds);
+  F.practice = !!(opts && opts.practice); F.stage = opts && opts.stage || 0; F.me = CONFIG.human;
+  if (NET.on) netDuelBegin(F);
   const tA = 0.1, tD = tA + INTRO_DUR[att.t] * 0.8, tWide = tD + INTRO_DUR[def.t] * 0.86;
   Object.assign(F, { phase: "intro", phaseT: 0, outroT: 0, onDone, last: performance.now(), slow: 0, hold: !!(opts && opts.hold), lightSq: !!(opts && opts.lightSq),
     intro: { tA, tD, tWide, tReady: tWide + 0.05, tFight: tWide + 0.55, end: tWide + 0.85, said: {} }, outro: null });
   fight = F; H.clock = null;
   for (const c of ["w", "b"]) {
     const f = F.f[c], C = c.toUpperCase();
-    $("kc" + C).textContent = `${COLORNAME[c]} ${f.s.name}${f.ai ? " (CPU)" : " (you)"}`;
+    $("kc" + C).textContent = `${COLORNAME[c]} ${f.s.name}${" (" + whoIs(c).toLowerCase() + ")"}`;
     $("kc" + C + "k").textContent = `${f.s.style}. Special: ${f.s.spName.toLowerCase()}.`;
   }
   document.body.classList.add("dueling");
   layer.hidden = false;
   if (init3D()) { layer.classList.add("three"); resize3D(); setup3D(F); } else layer.classList.remove("three");
   hudSetup(F);
+  $("exitBtn").hidden = !F.practice; $("movesBtn").hidden = !F.practice; $("pMoves").hidden = true;
+  if (F.practice) $("pMovesList").innerHTML = moveList(F.f[F.me].t);
   requestAnimationFrame(loop);
   return F;
 }
@@ -288,7 +294,7 @@ function loop(now) {
 }
 function showPlate(f) {
   const p = $("plate");
-  p.innerHTML = `<small>${f.isAtt ? "ATTACKER" : "DEFENDER"} · ${f.ai ? "CPU" : "YOU"}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP</span>`;
+  p.innerHTML = `<small>${fight && fight.practice ? "PRACTICE" : f.isAtt ? "ATTACKER" : "DEFENDER"} · ${whoIs(f.color)}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP</span>`;
   p.className = `plate ${f.color} ${f.face > 0 ? "lft" : "rgt"}`; restart(p, "go");
 }
 // one line reminding you what your piece does, shown under FIGHT!
@@ -298,7 +304,7 @@ function stepDuel(F, rdt) {
   if (F.phase === "intro") {
     const I = F.intro, was = F.phaseT;
     F.phaseT += rdt;
-    if (F.phaseT > 0.35 && F.phaseT < I.tWide && (anyPress() || F.skip)) F.phaseT = I.tWide;
+    if (F.phaseT > 0.35 && F.phaseT < I.tWide && (anyPress() || F.skip)) { if (F.net && F.skip !== 2) netCtl({ t: "skip" }); F.phaseT = I.tWide; } // online, skipping the entrances skips them for both
     const at = (t, key, fn) => { if (F.phaseT >= t && !I.said[key]) { I.said[key] = 1; fn(); } };
     if (F.phaseT < I.tWide) { at(I.tA, "pa", () => showPlate(F.att)); at(I.tD, "pd", () => showPlate(F.def)); }
     at(I.tWide, "w", () => { $("plate").className = "plate"; hud.classList.remove("intro"); $("skipBtn").hidden = true; });
@@ -322,21 +328,34 @@ function stepDuel(F, rdt) {
     if (F.outroT >= O.end || (F.outroT > O.tWin + 0.5 && anyPress())) endFight(F);
     return;
   }
-  const inp = readInput(), n = Math.max(1, Math.ceil(rdt * 60 - 0.01));
-  for (let i = 0; i < n && !F.result; i++) {
-    const first = i === 0;
-    simStep(F, rdt / n, () => first ? inp : { l: inp.l, r: inp.r, u: inp.u, d: inp.d, p: 0, k: 0, s: 0, x: 0, t: 0, uP: 0, lP: 0, rP: 0 });
+  if (F.net) netDuelStep(F, rdt);
+  else {
+    const inp = readInput(), n = Math.max(1, Math.ceil(rdt * 60 - 0.01)), mine = F.f[F.me], none = blankInput();
+    for (let i = 0; i < n && !F.result; i++) {
+      const first = i === 0;
+      simStep(F, rdt / n, f => f !== mine ? none : first ? inp : { l: inp.l, r: inp.r, u: inp.u, d: inp.d, p: 0, k: 0, s: 0, x: 0, t: 0, uP: 0, lP: 0, rP: 0 });
+    }
+    if (F.practice) practiceTick(F);
   }
   if (F.result) { F.phase = "outro"; F.outroT = 0; F.slow = F.result.timeout ? 0.5 : 1.3; F.outro = { tWin: F.result.timeout ? 1.0 : 1.7, end: (F.result.timeout ? 1.0 : 1.7) + 2.3, said: false }; }
+}
+// Practice: a partner that stands still gets its health back once you stop hitting it, and your special meter stays topped up
+function practiceTick(F) {
+  const me = F.f[F.me], o = F.f[F.me === "w" ? "b" : "w"];
+  for (const e of F.events) if (e.type === "hit" && e.f === o) F.pHit = F.t;
+  if (!o.ai && !F.result) { if (F.t - (F.pHit || 0) > 1.6 && o.hp < o.max) o.hp = Math.min(o.max, o.hp + o.max * 0.02); if (o.hp < 2) o.hp = 2; }
+  if (!o.ai && me.meter < 50) me.meter = Math.min(100, me.meter + 0.4);
 }
 function endFight(F) {
   if (F.ending) return; F.ending = true;
   wipe(() => {
     const r = F.result; musicStop(0.1); teardown3D(); fight = null; layer.hidden = true; document.body.classList.remove("dueling"); keys.clear();
-    F.onDone(r);
+    if (F.net) netDuelDone(F, r, F.onDone); else F.onDone(r);
   });
 }
 $("skipBtn").addEventListener("click", () => { if (fight) fight.skip = true; });
+$("exitBtn").addEventListener("click", () => { const F = fight; if (F && F.practice && !F.ending) { if (!F.result) F.result = { attackerWon: true, attackerHp: F.att.hp, defenderHp: F.def.hp, practice: true }; endFight(F); } });
+$("movesBtn").addEventListener("click", () => { $("pMoves").hidden = !$("pMoves").hidden; });
 for (const b of document.querySelectorAll(".sndToggle")) b.addEventListener("click", () => { auInit(); setMuted(!AU.muted); });
 setMuted(AU.muted);
 
@@ -349,7 +368,7 @@ function vsCard(att, def, behind, done) {
   const c = $("vsCard"), fill = (side, p, isAtt) => {
     const el = c.querySelector(".vsHalf." + side), s = STATS[p.t];
     el.querySelector(".vsGlyph").textContent = GLYPH[p.t] + VS;
-    el.querySelector("small").textContent = (isAtt ? "ATTACKER" : "DEFENDER") + (p.c === CONFIG.human ? " · YOU" : " · CPU");
+    el.querySelector("small").textContent = (isAtt ? "ATTACKER" : "DEFENDER") + (p.c === CONFIG.human ? " · YOU" : NET.on ? " · RIVAL" : " · CPU");
     el.querySelector("b").textContent = `${COLORNAME[p.c]} ${s.name}`;
     el.querySelector("i").style.width = (p.hp / s.hp * 100) + "%";
     el.querySelector("span").textContent = `${p.hp} / ${s.hp} HP · ${s.style}`;
