@@ -1,0 +1,156 @@
+
+<div class="wrap">
+  <header class="top">
+    <h1>H2H <span class="hl">Chess</span></h1>
+    <p class="tag">Chess where every capture is fought out as an arcade duel. Damage sticks. Losers leave the board.</p>
+    <button type="button" class="sndToggle" aria-label="Sound"></button>
+  </header>
+
+  <div class="main">
+    <div class="board-frame">
+      <div class="board" id="board" role="grid" aria-label="Chess board"></div>
+      <div class="checkBanner" id="checkBanner" hidden role="alert"><button type="button" class="cbX" id="checkX" aria-label="Dismiss check warning">×</button><b>CHECK!</b><span>Your king is under attack. If you lose a duel while your king is still in check, you lose the game.</span></div>
+      <div class="riskModal" id="riskModal" hidden role="alertdialog" aria-labelledby="riskTitle">
+        <div class="riskBox">
+          <div class="riskTitle" id="riskTitle">This duel can lose you the game</div>
+          <p id="riskText"></p>
+          <div class="riskBtns"><button type="button" class="btn ghost" id="riskNo">Back</button><button type="button" class="btn danger" id="riskYes">Fight anyway</button></div>
+        </div>
+      </div>
+      <div class="coords" aria-hidden="true"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+    </div>
+
+    <aside>
+      <section class="card acct" id="acct" aria-live="polite">
+        <div class="label">Player</div>
+        <div id="acctOut">
+          <p class="acct-hint">Sign in to track your rating, wins, losses and streak.</p>
+          <button class="btn" id="signIn" type="button">Quick sign in</button>
+        </div>
+        <div id="acctIn" hidden>
+          <div class="acct-head"><span class="acct-name" id="acctName"></span><span class="acct-rating"><b id="acctRating">1200</b><small>rating</small></span></div>
+          <div class="acct-rank" id="acctRank"></div>
+          <dl class="acct-stats">
+            <div><dt>Wins</dt><dd id="stW">0</dd></div>
+            <div><dt>Losses</dt><dd id="stL">0</dd></div>
+            <div><dt>Draws</dt><dd id="stD">0</dd></div>
+            <div><dt>Streak</dt><dd id="stS">0</dd></div>
+            <div><dt>Best streak</dt><dd id="stB">0</dd></div>
+            <div><dt>Duels won</dt><dd id="stDu">0 / 0</dd></div>
+          </dl>
+          <div class="acct-delta" id="acctDelta" hidden></div>
+          <div class="acct-btns"><button class="btn ghost" id="resetStats" type="button">Reset stats</button><button class="btn ghost" id="signOut" type="button">Sign out</button></div>
+          <div class="acct-where" id="acctWhere"></div>
+        </div>
+      </section>
+      <section class="card" aria-live="polite">
+        <div class="label">To move</div>
+        <div class="turn"><span class="chip w" id="turnChip"></span><span id="turnText">White</span></div>
+        <div class="status-note" id="statusNote">Tap a piece, then a square. Attacking an enemy starts a duel.</div>
+      </section>
+
+      <section class="card">
+        <div class="label">Match vs CPU</div>
+        <div class="row"><label for="side">You play</label>
+          <select id="side"><option value="w">White</option><option value="b">Black</option></select></div>
+        <div class="row"><label for="level">CPU level</label>
+          <select id="level"><option value="0">Easy</option><option value="1" selected>Normal</option><option value="2">Hard</option></select></div>
+        <div class="row"><button class="btn" id="newGame" type="button">New game</button><span class="hint">Changing side starts a new game.</span></div>
+      </section>
+
+      <section class="card">
+        <div class="label">Duel controls</div>
+        <dl class="ctl">
+          <dt>Phone</dt><dd>Joystick on the left. Punch, Kick, Special, Dash (or Step) and Throw on the right.</dd>
+          <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dash or sidestep · <kbd>R</kbd>/<kbd>U</kbd> throw (or punch+kick)</dd>
+          <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. Sidestep dodges straight attacks. Throws beat blocking, press throw as you're grabbed to break out.</dd>
+          <dt>Offence</dt><dd>Every piece has its own move list: strings like punch, punch, kick, a <b>launcher</b> on forward+kick to start juggles, lows on down, and a slow heavy on back+punch. Hitting someone mid-attack is a <b>counter hit</b> (+25%).</dd>
+          <dt>Meter</dt><dd>Specials cost one of the two <b>SP bars</b>. They fill as you hit, block and get hit. Under 30% HP you enter <b>rage</b>: hold <b>down + Special</b> for a one-time <b>rage art</b>. Blocking heavy hits still costs a sliver of health.</dd>
+        </dl>
+        <div class="hint">Tap any piece on the board to see its full move list below.</div>
+      </section>
+
+      <section class="card" id="statCard">
+        <div class="label">Fighter card and move list</div>
+        <div class="stat-head"><strong id="statName">Hover a piece</strong><span id="statHp"></span></div>
+        <ul class="moves" id="statMoves"><li class="hint">Stronger chess pieces hit harder and have more HP.</li></ul>
+        <dl class="mlist" id="statList"></dl>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary>House rules</summary>
+          <ul>
+            <li>Normal chess moves. A capture starts a duel between the two pieces.</li>
+            <li>The loser is removed. The winner keeps whatever HP it ended with.</li>
+            <li>If the attacker wins, it takes the square. If it loses, the defender stays put.</li>
+            <li>The king never fights. A king captures instantly, and nobody can duel a king.</li>
+            <li>At the start of your turn, pieces touching your king heal.</li>
+            <li>When time runs out, the side with the lower share of its own max HP loses. A tie goes to the defender.</li>
+            <li><b>If a failed capture leaves your own king in check, your king falls and you lose.</b> The game warns you before any duel like that.</li>
+            <li>A pawn that promotes becomes a queen at the same share of HP.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section class="card">
+        <div class="label">Match log</div>
+        <ul class="log" id="log"></ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div class="gameover" id="gameOver" hidden role="dialog" aria-modal="true" aria-labelledby="goTitle">
+  <div class="goBox">
+    <div class="goTitle" id="goTitle"></div>
+    <div class="goReason" id="goReason"></div>
+    <div class="goDelta" id="goDelta" hidden></div>
+    <div class="goBtns"><button type="button" class="btn" id="goNew">Play again</button><button type="button" class="btn ghost" id="goView">See the board</button></div>
+  </div>
+</div>
+
+<div class="dlg" id="dlg" hidden role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <form class="dlgBox" id="dlgForm">
+    <div class="dlgTitle" id="dlgTitle"></div>
+    <p id="dlgText"></p>
+    <input id="dlgInput" type="text" maxlength="20" autocomplete="nickname" placeholder="Player name" hidden>
+    <div class="riskBtns"><button type="button" class="btn ghost" id="dlgNo">Cancel</button><button type="submit" class="btn" id="dlgYes">OK</button></div>
+  </form>
+</div>
+
+<div id="fightLayer" hidden>
+  <div class="cab">
+    <div class="screen" id="screen"><canvas id="arena3d" aria-hidden="true"></canvas><canvas id="arena" width="384" height="216" aria-label="Duel arena"></canvas>
+      <div class="hud" id="hud">
+        <div class="hudTop"><div class="hs w" id="hudW"><div class="gly"></div><div class="bars"><div class="hp"><i class="lag"></i><i class="fill"></i><span class="num"></span></div><div class="under"><span class="role"></span><span class="nm"></span></div><div class="spRow"><span class="tag"></span><div class="sp"><i><u></u></i><i><u></u></i></div></div></div></div><div class="clock" id="clock"><span id="hudClock">30</span></div><div class="hs b" id="hudB"><div class="gly"></div><div class="bars"><div class="hp"><i class="lag"></i><i class="fill"></i><span class="num"></span></div><div class="under"><span class="role"></span><span class="nm"></span></div><div class="spRow"><span class="tag"></span><div class="sp"><i><u></u></i><i><u></u></i></div></div></div></div></div>
+        <div class="combo w" id="comboW"></div><div class="combo b" id="comboB"></div>
+        <div class="callo w" id="callW"></div><div class="callo b" id="callB"></div>
+        <div id="dmgs"></div>
+        <div class="ann" id="ann"></div><div class="annSub" id="annSub"></div>
+        <div class="plate" id="plate"></div><div class="mvname" id="mvName"></div>
+        <div class="hudFlash" id="hudFlash"></div>
+        <button type="button" class="sndToggle" aria-label="Sound"></button>
+        <button type="button" id="skipBtn" hidden>SKIP INTRO</button>
+      </div>
+    </div>
+    <div class="keys">
+      <div class="kc w"><span class="who" id="kcW">White</span><span id="kcWk"></span></div>
+      <div class="keyhelp"><kbd>WASD</kbd> move · <kbd>F</kbd> punch · <kbd>G</kbd> kick · <kbd>H</kbd> special · <kbd>E</kbd> dash / sidestep · <kbd>R</kbd> throw · hold back to block</div>
+      <div class="kc b"><span class="who" id="kcB">Black</span><span id="kcBk"></span></div>
+    </div>
+    <div class="rotate">Turn your phone sideways for a bigger arena.</div>
+    <div class="touch" id="touch">
+      <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+      <div class="pad">
+        <button type="button" class="b-t" data-b="t">THROW</button>
+        <button type="button" class="b-x" data-b="x">DASH</button>
+        <button type="button" class="b-s" data-b="s">SPECIAL</button>
+        <button type="button" class="b-p" data-b="p">PUNCH</button>
+        <button type="button" class="b-k" data-b="k">KICK</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="vs" id="vsCard" hidden><div class="vsHalf w"><div class="vsGlyph"></div><div class="vsInfo"><small></small><b></b><div class="vsHp"><i></i></div><span></span></div></div><div class="vsHalf b"><div class="vsGlyph"></div><div class="vsInfo"><small></small><b></b><div class="vsHp"><i></i></div><span></span></div></div><div class="vsMark">VS</div></div>
+<div class="wipe" id="wipe" hidden><i></i><i></i></div>
