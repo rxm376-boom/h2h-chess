@@ -1,7 +1,7 @@
 // Headless balance harness: node harness.js [n] [levels] [types]
 const fs = require('fs');
 const code = fs.readFileSync(__dirname + '/src/sim.js', 'utf8');
-const api = new Function(code + '\nreturn { STATS, MOVESET, HITS, makeDuel, simStep, AI_LV, ARCH };')();
+const api = new Function(code + '\nreturn { STATS, MOVESET, HITS, makeDuel, simStep, AI_LV, ARCH, LEARN };')();
 module.exports = api;
 function duel(ta, tb, lvA, lvB, hpA, hpB, stats) {
   const { STATS, makeDuel, simStep } = api;

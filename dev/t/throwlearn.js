@@ -1,0 +1,7 @@
+// audit4: break rate by grab number (CPU as victim), and result of a walk-up throw plan that is SEP-aware. node throwlearn.js [n]
+const { load, run } = require('./ml.js'); const api = load(); const n = +(process.argv[2] || 60);
+const NEU = new Set(['idle', 'walk', 'crouch']); const gapOf = (f, o) => Math.abs(o.x - f.x) - f.s.hw - o.s.hw;
+const sc = (F, f, o) => { if (f.state === 'thrown') return { t: 1 }; if (NEU.has(f.state)) return gapOf(f, o) < 13 ? { t: 1 } : { fw: 1 }; return {}; };
+for (const lvl of [0, 1, 2]) for (const opp of ['N', 'R']) { const g = [], b = []; let wins = 0, to = 0, grabs = 0, att = 0;
+  for (let i = 0; i < n; i++) { let k = 0, pending = false; const r = run(api, 'Q', opp, { lvl, script: sc, onEvents: (F, ev) => { for (const e of ev) { if (e.type === 'swing' && e.m && e.m.arch === 'throw' && e.f === F.f.w) att++; if (e.type === 'grab' && e.f === F.f.w) { g[k] = (g[k] || 0) + 1; pending = true; grabs++; } if (pending && e.type === 'block' && e.heavy && e.by === F.f.w && F.f.w.state === 'hit' && !F.f.w.grab) { b[k] = (b[k] || 0) + 1; pending = false; k++; } if (pending && e.type === 'slam') { pending = false; k++; } } } }); if (r.attackerWon) wins++; if (r.timeout) to++; }
+  console.log(`L${lvl} Queen walk-up throw vs ${opp}: win ${Math.round(wins / n * 100)}% timeout ${Math.round(to / n * 100)}%, throw attempts/duel ${(att / n).toFixed(1)}, grabs/duel ${(grabs / n).toFixed(1)}; break rate by grab #: ` + g.slice(0, 6).map((x, i) => `${i + 1}:${Math.round((b[i] || 0) / x * 100)}%(n${x})`).join(' ')); }

@@ -226,7 +226,7 @@ function directCamera(F, rdt, time) {
   const a = F.f.w, b = F.f.b, ax = wx(a.x), bx = wx(b.x), mid = (ax + bx) / 2, sep = Math.abs(ax - bx);
   const wide = Math.max(1, 1.62 / R3.camera.aspect);
   const top = R3.models.reduce((v, m) => Math.max(v, m.f.y + (m.view ? Math.max(0, m.view.dy) : 0)), 0); // highest fighter: lift and pull back so jumps stay in frame
-  const s = { shot: "fight", lx: mid, ly: 3.3 + top / 17, dist: (clamp(12.5 + sep * 0.66, 16, 27) + top * 0.17) * wide, yaw: -mid / 17 * 0.1 + Math.sin(time * 0.31) * 0.02, pitch: 0.035, k: 0.12 };
+  const s = { shot: "fight", lx: mid, ly: 3.3 + top / 17, dist: (clamp(12.5 + sep * 0.66, 16, 27) + top * 0.17 + Math.max(0, top - 80) * 0.14) * wide, yaw: -mid / 17 * 0.1 + Math.sin(time * 0.31) * 0.02, pitch: 0.035, k: 0.12 };
   const solo = (f, d, yaw, pitch, ly) => { const m = R3.models.find(mm => mm.f === f), dy = m ? m.view.dy : 0, dx = m ? m.view.dx * f.face : 0; s.lx = wx(f.x + dx) + f.face * 0.4; s.ly = (ly || 3.7) + (f.y + dy * 0.8) / 10; s.dist = d * Math.max(1, wide * 0.8); s.yaw = yaw; s.pitch = pitch; };
   if (F.phase === "intro") {
     const I = F.intro, t = F.phaseT;
@@ -243,7 +243,7 @@ function directCamera(F, rdt, time) {
   } else if (F.phase === "outro") {
     const r = F.result, w = r.attackerWon ? F.att : F.def, l = r.attackerWon ? F.def : F.att, t = F.outroT;
     if (t < F.outro.tWin) { s.shot = "ko"; s.lx = wx(l.x) * 0.8 + wx(w.x) * 0.2; s.ly = Math.max(2.4, (l.y + 20) / 10); s.dist = (17.5 - Math.min(2.5, t * 1.6)) * wide; s.yaw = (0.12 + t * 0.14) * (l.face > 0 ? -1 : 1); s.k = 0.2; }
-    else { const u = t - F.outro.tWin; s.shot = "win"; solo(w, 13 - Math.min(1.5, u * 0.8), w.face * (0.5 - Math.min(0.2, u * 0.1)), -0.05, 3.8); s.k = 0.2; }
+    else { const u = t - F.outro.tWin; s.shot = "win"; solo(w, 14.6 - Math.min(1.5, u * 0.8), w.face * (0.5 - Math.min(0.2, u * 0.1)), -0.05, 3.6); s.k = 0.2; }
   }
   const tx = s.lx + Math.sin(s.yaw) * s.dist, tz = Math.cos(s.yaw) * s.dist, ty = Math.max(0.6, s.ly + 0.1 + s.dist * s.pitch), C = R3.cam;
   if (R3.shot !== s.shot && !(s.shot === "fight" && (R3.shot === "introW" || R3.shot === "sp")) && s.shot !== "sp") { C.x = tx; C.y = ty; C.z = tz; C.lx = s.lx; C.ly = s.ly; }

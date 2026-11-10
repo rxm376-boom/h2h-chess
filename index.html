@@ -443,7 +443,7 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
           <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dash or sidestep · <kbd>R</kbd>/<kbd>U</kbd> throw (or punch+kick)</dd>
           <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. Sidestep dodges straight attacks. Throws beat blocking, press throw as you're grabbed to break out.</dd>
           <dt>Offence</dt><dd>Every piece has its own move list: strings like punch, punch, kick, a <b>launcher</b> on forward+kick to start juggles, lows on down, and a slow heavy on back+punch. Hitting someone mid-attack is a <b>counter hit</b> (+25%).</dd>
-          <dt>Meter</dt><dd>Specials cost one of the two <b>SP bars</b>. They fill as you hit, block and get hit. Under 30% HP you enter <b>rage</b>: hold <b>down + Special</b> for a one-time <b>rage art</b>. Blocking heavy hits still costs a sliver of health.</dd>
+          <dt>Meter</dt><dd>Specials cost one of the two <b>SP bars</b>. They fill as you hit, block and get hit. Under 30% HP (and after losing a good chunk of the health you walked in with) you enter <b>rage</b>: hold <b>down + Special</b> for a one-time <b>rage art</b>. Blocking heavy hits still costs a sliver of health.</dd>
         </dl>
         <div class="hint">Tap any piece on the board to see its full move list below.</div>
       </section>
@@ -569,7 +569,7 @@ const STATS = {
   N: { name: "Knight", hp: 112, pow: 1.12, airPow: 1.25, spd: 68, jump: 292, airJumps: 1, dash: null, hw: 15, sp: "leap", deflect: 2, value: 3,
        style: "Jumper", spName: "L-leap dive kick (knocks down)", throwName: "Rodeo Vault", rageName: "CAVALRY CHARGE",
        notes: ["Kick specialist: flip-kick launcher, spinning heel", "Highest jump + double jump, air attacks hit 25% harder and kick bolts away", "Sidestep instead of a dash"] },
-  B: { name: "Bishop", hp: 101, pow: 1.22, spd: 60, jump: 240, airJumps: 0, dash: null, hw: 15, sp: "blink", value: 3.2,
+  B: { name: "Bishop", hp: 105, pow: 1.22, spd: 60, jump: 240, airJumps: 0, dash: null, hw: 15, sp: "blink", value: 3.2,
        style: "Diagonal zoner", spName: "Diagonal teleport (hold back to retreat)", throwName: "Crook Hook", rageName: "DIVINE DIAGONAL",
        notes: ["Punch fires a 45° bolt: up from the ground, down from the air. Bolts ignore armor", "Long staff pokes keep enemies out", "Sidestep instead of a dash"] },
   R: { name: "Rook", hp: 110, pow: 1.2, spd: 42, jump: 0, airJumps: 0, dash: { spd: 330, dur: 0.22, dmg: 6, air: false, cd: 1.7 }, hw: 16, sp: "quake", armor: 0.9, value: 5,
@@ -607,7 +607,7 @@ const MOVESET = {
     P3:  mv("Body Hook", "body", { dmg: 9, ha: .08, anim: "hook" }),
     PK:  mv("Shin Kick", "lowjab", { dmg: 5, anim: "lowkick", reach: 38, h: 9, crouch: false, light: false, su: .16 }),
     P2K: mv("Boot", "kick", { dmg: 10, push: 150, su: .17 }),
-    fP:  mv("Shield Bash", "lunge", { dmg: 9, ba: -.02, push: 175, anim: "bash" }),
+    fP:  mv("Shield Bash", "lunge", { dmg: 9, ba: -.12, push: 175, bpush: 60, anim: "bash" }),
     bP:  mv("Haymaker", "heavy"),
     dP:  mv("Shin Jab", "lowjab"),
     K:   mv("Front Kick", "kick", { next: { P: "KP" } }),
@@ -653,7 +653,7 @@ const MOVESET = {
     P:   mv("Hammer Fist", "jab", { su: .13, rc: .16, dmg: 7, lvl: "mid", h: 40, light: false, next: { P: "P2" }, anim: "hammer", ha: .04, ba: -.03 }),
     P2:  mv("Mortar Fist", "cross", { su: .14, dmg: 9, lvl: "mid", h: 38, next: { P: "P3" }, anim: "body", ba: -.08 }),
     P3:  mv("Keystone Smash", "heavy", { lvl: "mid", h: 42, dmg: 14, kd: true, su: .26, anim: "smash", ba: -.16 }),
-    fP:  mv("Battering Ram", "lunge", { step: 230, dmg: 9, push: 190, anim: "bash", su: .2, ba: -.1 }),
+    fP:  mv("Battering Ram", "lunge", { step: 190, dmg: 9, push: 190, anim: "bash", su: .2, ba: -.1 }),
     bP:  mv("Wrecking Ball", "heavy", { su: .34, dmg: 18, ba: .05, push: 230, reach: 42, anim: "wreck", kd: true }),
     dP:  mv("Foundation Punch", "lowjab", { su: .17, dmg: 6, light: false, rc: .22, reach: 34 }),
     uP:  mv("Turret Uppercut", "launch", { su: .15, reach: 32, h: 54, h0: 30, r: 9, dmg: 10, anim: "upper", rc: .36, ba: -.2 }),
@@ -668,7 +668,7 @@ const MOVESET = {
     P3:  mv("Royal Thrust", "body", { reach: 44, next: { K: "P3K" }, anim: "thrust" }),
     P2K: mv("Shin Cut", "lowjab", { dmg: 6, anim: "lowkick", reach: 40, h: 9, crouch: false, light: false, su: .17, rc: .22 }),
     P3K: mv("High Heel", "kick", { lvl: "high", h: 48, dmg: 9, next: { K: "P3KK" }, anim: "crescent" }),
-    P3KK:mv("Coronation", "heavy", { lvl: "mid", h: 40, dmg: 13, kd: true, su: .24, anim: "axe", ba: -.15, reach: 42 }),
+    P3KK:mv("Coronation", "heavy", { lvl: "mid", h: 40, dmg: 13, kd: true, su: .24, anim: "axe", ba: -.15, reach: 48 }),
     fP:  mv("Lunging Thrust", "lunge", { reach: 46, anim: "thrust" }),
     bP:  mv("Sovereign Slash", "heavy", { reach: 44, anim: "slash" }),
     dP:  mv("Low Flick", "lowjab", { reach: 36 }),
@@ -690,10 +690,10 @@ for (const t in MOVESET) for (const k in MOVESET[t]) { const m = MOVESET[t][k]; 
 const HITS = {
   rush:  { name: "Shoulder Rush", dmg: 10, lvl: "mid",  hs: .36, bs: .18, push: 140, ch: "kd" },
   leap:  { name: "Dive Kick",     dmg: 12, lvl: "mid",  hs: .3,  bs: .2,  push: 110, kd: true, airy: true },
-  bolt:  { name: "Bolt",          dmg: 8,  lvl: "mid",  hs: .28, bs: .14, push: 70,  proj: true, pierce: true },
+  bolt:  { name: "Bolt",          dmg: 9,  lvl: "mid",  hs: .32, bs: .14, push: 140,  proj: true, pierce: true },
   wave:  { name: "Shockwave",     dmg: 10, lvl: "low",  hs: .4,  bs: .2,  push: 120, kd: true, proj: true },
   beam:  { name: "Royal Bolt",    dmg: 10, lvl: "high", hs: .3,  bs: .14, push: 90,  proj: true },
-  rdash: { name: "Dash",          dmg: 6,  lvl: "mid",  hs: .34, bs: .2,  push: 150 },
+  rdash: { name: "Dash",          dmg: 6,  lvl: "mid",  hs: .34, bs: .2,  push: 150, bpush: 55 },
   rage:  { name: "Rage Art",      dmg: 24, lvl: "mid",  hs: .5,  bs: .32, push: 220, kd: true, rage: true },
   throw: { name: "Throw",         dmg: 13, lvl: "throw", hs: .5, bs: 0,   push: 0,   kd: true },
 };
@@ -781,6 +781,7 @@ function tryStep(F, f, dir) {
   F.events.push({ type: "step", f });
   return true;
 }
+const SEP = 6;
 const stepInv = f => f.state === "step" && f.step && f.step.t >= STEP_INV[0] && f.step.t <= STEP_INV[1];
 
 function pickMove(f, btn, I, fw, bk) {
@@ -805,7 +806,8 @@ function update(F, f, o, dt) {
   if (f.comboT > 0) { f.comboT -= dt; if (f.comboT <= 0) { f.combo = 0; f.comboDmg = 0; } }
   f.tap.t += dt;
   if (f.buf) { f.buf.t -= dt; if (f.buf.t <= 0) f.buf = null; }
-  if (!f.rage && f.hp > 0 && f.hp / f.max < 0.3) { f.rage = true; call(F, f, "RAGE", "rage"); F.events.push({ type: "rage", f }); }
+  if (f.hp0 == null) f.hp0 = f.hp; /* rage has to be earned in this duel: an already wounded piece must lose 40% of what it walked in with */
+  if (!f.rage && f.hp > 0 && f.hp / f.max < 0.3 && f.hp <= f.hp0 * 0.6) { f.rage = true; call(F, f, "RAGE", "rage"); F.events.push({ type: "rage", f }); }
   const I = f.inp;
   if (I.p) f.buf = { b: "P", t: 0.2 }; else if (I.k) f.buf = { b: "K", t: 0.2 };
   let tapDash = 0;
@@ -844,10 +846,10 @@ function update(F, f, o, dt) {
       const D = f.dash; D.t -= dt;
       f.vx = D.dir * f.s.dash.spd; f.vy = 0;
       if (f.s.dash.dmg && !D.hit && D.dir === f.face) {
-        const hit = strikeHits(f, o, { reach: 16, h: 32, r: 8 });
+        const hit = o.y > 16 ? null : strikeHits(f, o, { reach: 16, h: 32, r: 8 }); /* the shoulder charge runs under anyone who is properly airborne */
         if (hit) { // contact ends the dash with real recovery: a little plus on hit, punishable on block
           const res = resolveHit(F, f, o, HITS.rdash, hit);
-          f.dash = null; f.state = "land"; f.st = res === "block" ? 0.4 : 0.38; f.stT = 0; f.vx = 0; break;
+          f.dash = null; f.state = "land"; f.st = res === "block" ? 0.5 : 0.38; f.stT = 0; f.vx = 0; break;
         }
       }
       if (D.t <= 0) { f.dash = null; f.vx *= 0.25; f.state = f.y > 0 ? "jump" : "idle"; }
@@ -866,6 +868,7 @@ function update(F, f, o, dt) {
     case "attack": {
       const m = f.ms[f.move]; f.mt += dt;
       f.vx *= Math.exp(-(m.step && f.mt < m.su + m.ac ? 3.5 : 13) * dt);
+      if (m.step > 0 && o.y < 20 && Math.abs(o.x - f.x) - f.s.hw - o.s.hw <= SEP + 1 && f.vx * f.face > 0) f.vx = 0; /* a lunge stops at the body instead of ploughing through it */
       moveTick(F, f, o);
       if (f.state !== "attack") break;
       const win = f.mt >= m.su + m.ac * 0.5 && f.mt <= m.su + m.ac + m.rc * 0.6;
@@ -879,7 +882,7 @@ function update(F, f, o, dt) {
     case "thrown": {
       const th = f.thrower;
       if (!th || th.state !== "throw" || !th.grab) { f.state = "idle"; f.thrower = null; break; }
-      f.vx = 0; f.x = clamp(th.x + th.face * (th.s.hw + f.s.hw + (th.t === "R" || th.t === "Q" ? 2 : 10)), AR.L + f.s.hw, AR.R - f.s.hw); f.face = -th.face;
+      { const hold = th.s.hw + f.s.hw + (th.t === "R" || th.t === "Q" ? 6 : 12), want = th.x + th.face * hold; f.vx = 0; f.x = clamp(want, AR.L + f.s.hw, AR.R - f.s.hw); if (f.x !== want) th.x = f.x - th.face * hold; /* at the wall the thrower steps back instead of sinking into the victim */ } f.face = -th.face;
       if (I.t && th.grab.t < 0.3) breakThrow(F, th, f);
       break;
     }
@@ -927,7 +930,7 @@ function separate(a, b) {
   }
   if (a.y > 22 || b.y > 22) return;
   if (a.state === "ko" || b.state === "ko" || a.state === "ragecine" || b.state === "ragecine") return;
-  const min = a.s.hw + b.s.hw;
+  const min = a.s.hw + b.s.hw + SEP; /* bodies keep a little air between them so limbs and weapons do not sink into the other fighter */
   const dx = b.x - a.x, d = Math.abs(dx);
   if (d >= min) return;
   const s = dx === 0 ? (a.face > 0 ? 1 : -1) : Math.sign(dx);
@@ -1039,7 +1042,7 @@ function resolveHit(F, att, def, m, at) {
   if (counter) call(F, att, "COUNTER HIT", "counter");
   // super armor during a rush or rage art; rook armor shrugs off light hits on the ground
   if (def.hp > 0 && def.sp && (def.sp.kind === "rage" || (def.sp.kind === "rush" && !m.launch && !m.kd))) return "armor";
-  if (def.hp > 0 && def.s.armor && def.y === 0 && def.state !== "hit" && def.state !== "land" && !(def.state === "attack" && def.move && def.mt > def.ms[def.move].su + def.ms[def.move].ac) && (m.light || (def.state === "dash" && !m.kd && !m.launch && !m.proj && m.dmg < 9))) { F.events.push({ type: "armor", f: def }); return "armor"; }
+  if (def.hp > 0 && def.s.armor && def.y === 0 && def.state !== "hit" && def.state !== "land" && !(def.state === "attack" && def.move && def.mt > def.ms[def.move].su + def.ms[def.move].ac) && (m.light || (def.state === "dash" && !m.kd && !m.launch && !m.proj && m.dmg < 9 && def.dash && def.dash.t > 0.11))) { F.events.push({ type: "armor", f: def }); return "armor"; }
   def.sp = null; def.move = null; def.dash = null; def.step = null; def.z = 0; def.grab = null;
   def.hitKind = m.lvl === "low" ? "low" : m.lvl === "high" ? "high" : heavy ? "gut" : "mid"; def.stT = 0; def.hitPush = m.push;
   const kd = m.kd || (counter && m.ch === "kd");
@@ -1067,11 +1070,11 @@ function updateThrow(F, f, o, dt) {
   f.mt += dt; f.vx *= Math.exp(-17 * dt);
   if (!f.grab) {
     if (f.mt >= 0.08 && f.mt < 0.17) {
-      const reach = f.s.hw + o.s.hw + 9;
+      const reach = f.s.hw + o.s.hw + SEP + 8;
       const ok = o.y === 0 && Math.abs(o.x - f.x) < reach && o.inv <= 0 && !["down", "ko", "getup", "fall", "thrown", "dash", "throw", "step", "hit", "block", "ragecine", "ragevictim"].includes(o.state) && !(o.sp && o.sp.kind === "rage");
       if (ok) {
         f.grab = { t: 0 }; o.state = "thrown"; o.stT = 0; o.thrower = f; o.move = null; o.sp = null; o.dash = null; o.vx = 0;
-        if (o.ai) o.ai.breakRoll = Math.random() < AI_LV[o.ai.lvl].brk;
+        if (o.ai) { o.ai.grabbed = (o.ai.grabbed || 0) + 1; o.ai.breakRoll = Math.random() < Math.min([0.5, 0.8, 1][o.ai.lvl], AI_LV[o.ai.lvl].brk + 0.22 * (o.ai.grabbed - 1)); } /* every grab after the first is easier for the CPU to see coming */
         call(F, f, f.s.throwName.toUpperCase(), "throw"); F.hitstop = 0.05; F.events.push({ type: "grab", f, o });
       } else if (o.state === "throw" && !o.grab && Math.abs(o.x - f.x) < reach) { breakThrow(F, f, o); return; }
     }
@@ -1087,9 +1090,10 @@ function updateThrow(F, f, o, dt) {
     f.grab = null; f.state = "land"; f.st = 0.34; f.stT = 0;
   }
 }
-function breakThrow(F, th, v) {
+function breakThrow(F, th, v) { // the breaker comes out ahead: the thrower is shoved back and recovers later
   const d = Math.sign(v.x - th.x) || th.face;
-  for (const [f, dir] of [[th, -d], [v, d]]) { f.state = "hit"; f.hitKind = "mid"; f.stT = 0; f.st = 0.24; f.vx = dir * 170; f.grab = null; f.thrower = null; f.hitPush = 0; }
+  for (const [f, dir] of [[th, -d], [v, d]]) { f.state = "hit"; f.hitKind = "mid"; f.stT = 0; f.st = f === th ? 0.4 : 0.22; f.vx = dir * (f === th ? 170 : 80); f.grab = null; f.thrower = null; f.hitPush = 0; }
+  if (v.ai) { const k = ["fP", "K", "P"].filter(x => v.ms[x] && !v.ms[x].proj && v.ms[x].su <= 0.2).sort((x, y) => moveRange(v.ms[y]) - moveRange(v.ms[x]))[0]; if (k) v.ai.afterBreak = k; } /* a CPU that breaks a grab takes its turn, so grab, break, grab cannot loop */
   F.events.push({ type: "block", x: (th.x + v.x) / 2, h: 36, f: v, by: th, heavy: true }); call(F, v, "THROW BREAK", "sp");
 }
 
@@ -1217,9 +1221,9 @@ function updateProj(F, dt) {
 
 /* ---------- CPU fighter ---------- */
 const AI_LV = [
-  { react: .30, block: .22, read: .30, punish: .15, aggro: .45, combo: .35, brk: .15, zone: .5 },
-  { react: .21, block: .44, read: .50, punish: .44, aggro: .56, combo: .60, brk: .40, zone: .75 },
-  { react: .13, block: .70, read: .75, punish: .72, aggro: .70, combo: .88, brk: .70, zone: 1 },
+  { react: .36, block: .18, read: .25, punish: .12, aggro: .35, combo: .30, brk: .10, zone: .6, rest: .9 },
+  { react: .25, block: .38, read: .45, punish: .30, aggro: .36, combo: .52, brk: .40, zone: .7, rest: .6 },
+  { react: .17, block: .50, read: .68, punish: .50, aggro: .66, combo: .82, brk: .60, zone: 1, rest: .3 },
 ];
 let JUMPY = 0.3; // better CPUs jump in less: a waiting opponent can anti-air
 const AI_W = { P: 3, fP: 2, bP: .5, dP: 1.1, K: 2, fK: .6, bK: .8, dK: 1.2 };
@@ -1230,6 +1234,7 @@ function aiString(f, slot, L) { // follow a string to its end, branching at rand
   while (m && m.next && Math.random() < L.combo) { const ks = Object.keys(m.next), b = ks[(Math.random() * ks.length) | 0]; q.push(b); m = f.ms[m.next[b]]; }
   return q;
 }
+const LEARN = [0.14, 0.06, 0.07]; // how fast the CPU catches on to repetition: punish per repeat, block base, block per level
 function aiInput(F, f, o, dt) {
   const A = f.ai, L = AI_LV[A.lvl], s = f.s, ms = f.ms;
   const out = blankInput();
@@ -1242,11 +1247,16 @@ function aiInput(F, f, o, dt) {
   const free = NEUTRAL.has(f.state);
   const setHold = h => { A.hold = Object.assign({ l: 0, r: 0, u: 0, d: 0 }, h); };
 
+  if (A.afterBreak && free) { A.queue = [A.afterBreak]; A.afterBreak = null; setHold({}); A.think = 0.35; }
+  // weaker CPUs take a breather after each attack sequence instead of swinging non-stop; they still guard and punish while resting
   // how long the opponent has done nothing but block or back off; a turtle gets thrown and swept
   A.passive = (o.state === "attack" || o.state === "special" || o.state === "throw" || o.state === "dash" || o.y > 0) ? 0 : (A.passive || 0) + dt;
   const turtle = A.passive > 1.1, hurry = F.seconds - F.t < 10 && f.hp / f.max <= o.hp / o.max;
-  // the same thing over and over gets figured out: every repeat makes the CPU block and punish it more (Normal and Hard)
-  const wise = F.t - (A.repT || -9) < 3 ? Math.min(3, (A.rep || 1) - 1) * 0.24 * A.lvl : 0;
+  // weaker CPUs take a breather after each attack sequence instead of swinging non-stop; they still guard and punish while resting.
+  // No breather against a turtle, when behind on the clock, or while the opponent is in the air or on the floor from our own hit
+  if (A.resting && free) { A.resting = false; if (!turtle && !hurry && !["fall", "down", "getup"].includes(o.state)) { A.think = Math.max(A.think, L.rest * (0.5 + rnd())); setHold(rnd() < 0.4 ? { [away]: 1 } : {}); } }
+  // the same thing over and over gets figured out: every repeat makes the CPU block and punish it more (never on Easy)
+  const wise = F.t - (A.repT || -9) < 3 ? Math.min(3, (A.rep || 1) - 1) * LEARN[0] * A.lvl : 0;
   // --- reactions to threats ---
   const om = o.state === "attack" && o.move ? o.ms[o.move] : null;
   const inc = F.proj.find(p => p.owner === o && Math.abs(p.x - f.x) < 110 && Math.sign(p.vx) === Math.sign(f.x - p.x) && (p.kind !== "bolt" || Math.abs((p.h - 30) - Math.abs(p.x - f.x) * Math.sign(-p.vh)) < 40));
@@ -1262,23 +1272,24 @@ function aiInput(F, f, o, dt) {
     const tid = threat.id.replace(/\d+\.\d+$/, "");
     if (A.seen !== tid) { // the same attack again and again gets read: faster reactions, surer blocks, and a planned answer
       A.seen = tid; A.rolled = false;
-      A.rep = A.repId === tid && F.t - (A.repT || 0) < 4 ? A.rep + 1 : 1; A.repId = tid; A.repT = F.t;
+      const hs = A.hist || (A.hist = {}), h0 = hs[tid]; /* remembered per attack, so a repeated string is learned too */ A.rep = h0 && F.t - h0.t < 4 ? h0.n + 1 : 1; hs[tid] = { n: A.rep, t: F.t }; A.repId = tid; A.repT = F.t;
       A.reactT = L.react * (0.7 + rnd() * 0.6) / (1 + 0.35 * Math.min(4, A.rep - 1));
     }
     A.reactT -= dt;
     if (A.reactT <= 0 && !A.rolled && free) {
       A.rolled = true;
-      const learn = Math.min(4, A.rep - 1) * (0.1 + 0.12 * A.lvl);
+      const learn = Math.min(threat.proj ? 1 : 4, A.rep - 1) * (LEARN[1] + LEARN[2] * A.lvl);
+      const dashSeen = threat.id === "dash" && A.rep >= 2 && A.lvl > 0 ? Math.max(0, 0.55 - L.block) : 0;
       const slow = threat.m ? clamp((threat.m.su - 0.12) * 1.6, 0, 0.35) : 0; /* slow wind-ups are easier to see coming */
-      if (rnd() < Math.min(0.97, L.block + learn + slow + (threat.air ? 0.25 : 0))) {
+      if (rnd() < Math.min(0.97, L.block + learn + slow + dashSeen + (threat.air ? 0.25 : 0))) {
         A.queue = []; const r = rnd();
         if (threat.proj && threat.proj.kind === "wave" && s.jump > 0 && r < 0.75) setHold({ u: 1 });
         else if (threat.proj && threat.proj.kind === "beam" && r < L.read) setHold({ d: 1 });
-        else if (!s.dash && threat.m && !threat.m.track && threat.m.su > 0.16 && f.dashCd <= 0 && r < (0.22 + 0.2 * Math.min(3, A.rep - 1)) * L.read) { A.queue = ["X", rnd() < 0.5 ? "K" : "P"]; setHold({}); }
+        else if (!s.dash && threat.m && !threat.m.track && threat.m.su > 0.16 && f.dashCd <= 0 && r < (0.22 + 0.2 * Math.min(3, A.rep - 1)) * L.read * [0.4, 0.55, 1][A.lvl]) { A.queue = ["X", rnd() < 0.5 ? "K" : "P"]; setHold({}); }
         else if (threat.proj && !s.dash && r < 0.25 * L.read) { A.queue = ["X"]; setHold({}); }
         else if (threat.air && (o.airJ <= 0 || ms.uP || rnd() < 0.3) && r < L.punish * 0.75 + learn) { A.aa = true; setHold({ [away]: 1 }); } // guard, and anti-air as the jump comes down (a jumper who can still double jump mostly just gets blocked)
         else if (threat.lvl === "high" && threat.m && r < 0.25 * L.read) setHold({ d: 1 });
-        else { const h = { [away]: 1 }; if (threat.lvl === "low" ? rnd() < L.read : (threat.lvl === "mid" ? false : false)) h.d = 1; setHold(h); }
+        else { const h = { [away]: 1 }; if (threat.lvl === "low" && rnd() < L.read + 0.25 * (A.rep - 1)) h.d = 1; setHold(h); }
         A.think = Math.max(A.think, threat.until + 0.07);
       }
     }
@@ -1302,15 +1313,15 @@ function aiInput(F, f, o, dt) {
     else if (o.state === "throw" && !o.grab && o.mt > 0.17) avail = 0.5 - o.mt;
     else if (o.state === "special" && o.sp && (o.sp.kind === "quake" || o.sp.kind === "beam") && gap < 30) avail = o.sp.dur - o.mt;
     const key = o.state + (o.move || "") + Math.floor(F.t * 2);
-    if (avail > 0.01 && avail <= 0.1 && A.punished !== key && f.stT < 0.06 && !A.queue.length && rnd() < L.punish + wise) {
+    if (avail > 0.01 && avail <= 0.16 && A.punished !== key && f.stT < 0.06 && !A.queue.length && !(om && om.next && rnd() < 0.45 + 0.2 * A.lvl) && rnd() < (L.punish + (A.lvl > 0 ? wise : 0)) * [0.3, 0.45, 1][A.lvl]) { /* mid-string: usually keep guarding until the string is over */
       // small frame advantage after a block: take the turn back with something that will beat their next button
-      const c = ["fP", "K", "P", "dP"].filter(k => ms[k] && !ms[k].proj && ms[k].su <= avail + 0.12 && edge < moveRange(ms[k]) - 3).sort((a, b) => ms[b].dmg - ms[a].dmg)[0];
+      const c = ["fP", "K", "P", "dP"].filter(k => ms[k] && !ms[k].proj && ms[k].su <= avail + 0.09 && edge < moveRange(ms[k]) - 3).sort((a, b) => ms[b].dmg - ms[a].dmg)[0];
       if (c) { A.punished = key; A.queue = ms[c].next ? aiString(f, c, L) : [c]; setHold({}); A.think = 0.3; }
     }
     if (avail > 0.1 && A.punished !== key) {
       A.punished = key;
-      if (rnd() < (L.punish + wise) * (om && om.next ? 0.45 : 1)) {
-        const fits = k => ms[k] && !ms[k].proj && ms[k].su < avail - 0.02 && edge < moveRange(ms[k]) - 2;
+      if (rnd() < (o.state === "land" && !o.s.jump ? Math.max(L.punish, 0.65) : L.punish + wise) * (om && om.next ? 0.45 : 1)) { /* a blocked rook dash is a free hit that every level takes most of the time */
+        const fits = k => ms[k] && !ms[k].proj && ms[k].su <= avail - 0.02 && edge < moveRange(ms[k]) - 2;
         const pick = fits("fK") && rnd() < 0.8 ? "fK" : fits("uP") ? "uP" : fits("bP") ? "bP" : fits("K") ? "K" : fits("P") ? "P" : fits("fP") ? "fP" : null;
         if (pick) { A.queue = pick === "P" || pick === "K" ? aiString(f, pick, L) : [pick]; setHold({}); A.think = 0.3; }
       }
@@ -1345,13 +1356,16 @@ function aiInput(F, f, o, dt) {
         const out2 = rnd() < (A.rep >= 2 ? 0.3 + 0.15 * A.lvl : 0.08);
         // beat a slow wind-up with something faster when it would land first
         const quick = ["P", "K", "dP"].filter(k => ms[k] && !ms[k].proj && edge < moveRange(ms[k]) - 3).sort((a, b) => ms[a].su - ms[b].su)[0];
-        if (quick && ms[quick].su + 0.03 < om.su - o.mt && rnd() < (L.punish + wise) * [0, 0.45, 0.85][A.lvl]) { A.queue = quick === "dP" ? [quick] : aiString(f, quick, L); setHold({}); A.think = 0.25; }
-        else if (out2 && s.dash && s.dash.dmg && f.dashCd <= 0) { A.queue = ["X"]; setHold({ [toward]: 1 }); A.think = 0.3; }
+        if (quick && ms[quick].su + 0.03 < om.su - o.mt && rnd() < (L.punish + wise) * [0, 0.2, 0.4][A.lvl]) { A.queue = quick === "dP" ? [quick] : aiString(f, quick, L); setHold({}); A.think = 0.25; }
+        else if (out2 && s.dash && s.dash.dmg && f.dashCd <= 0 && A.lvl > 1) { /* only Hard charges through a swing on reaction */ A.queue = ["X"]; setHold({ [toward]: 1 }); A.think = 0.3; }
         else if (out2 && !s.dash && !om.track && f.dashCd <= 0) { A.queue = ["X", rnd() < 0.5 ? "K" : "P"]; setHold({}); A.think = 0.3; }
         else if (out2 && s.jump > 0 && om.lvl !== "high" && om.arch !== "launch") { setHold({ u: 1, [toward]: 1 }); A.plan = "airhit"; A.think = 0.3; }
         else { setHold({ [away]: 1 }); A.think = 0.1 + rnd() * 0.1; }
         return Object.assign(out, A.hold, A.queue.length ? {} : {});
       }
+      if (swinging && A.lvl < 2 && rnd() < 0.7) { A.think = 0.07; return Object.assign(out, A.hold); } /* Easy and Normal do not throw a button out the instant they see yours start */
+      // someone strolling into grab range gets a quick button in the face
+      if (oGround && gap < 14 && o.state === "walk" && o.vx * (f.x - o.x) > 0) { const jb = ["P", "K", "dP"].filter(k => ms[k] && !ms[k].proj && edge < moveRange(ms[k]) - 3).sort((x, y) => ms[x].su - ms[y].su)[0]; if (jb) add(1.2 + 2.5 * L.aggro, () => { A.queue = aiString(f, jb, L); setHold({}); A.think = 0.3; }); }
       const hot = A.passive < 0.7 && oGround && gap < 46 && F.t - (A.repT || -9) < 1.5;
       if (hot && !hurry) add(3.2 * L.block * (1 + 0.35 * Math.min(3, (A.rep || 1) - 1)), () => { setHold({ [away]: 1 }); A.think = 0.22 + rnd() * 0.2; });
       // attacks that reach
@@ -1360,18 +1374,18 @@ function aiInput(F, f, o, dt) {
         const rg = moveRange(m);
         if (edge < rg - 3 && edge > rg - 46) {
           let w = AI_W[k] * (0.5 + L.aggro);
-          if (m.lvl === "low" && (o.state === "block" || turtle)) w *= 1.8;
+          if (m.lvl === "low" && (o.state === "block" || turtle)) w *= turtle ? 3 : 1.8;
           if (hurry) w *= 1.4;
           if (zoner && edge > 30) w *= 1.6;
           add(w, () => { A.queue = (k === "P" || k === "K" || m.next) ? aiString(f, k, L) : [k]; setHold({}); A.think = 0.16 + rnd() * 0.14 + (1 - L.aggro) * 0.45; }); // weaker CPUs leave a gap after each string
         }
       }
-      if (oGround && gap < 9 && NEUTRAL.has(o.state)) add((0.9 + L.aggro) * (turtle ? 4 : 1), () => { A.queue = ["T"]; setHold({}); });
+      if (oGround && gap < 9 + SEP && NEUTRAL.has(o.state)) add((0.9 + L.aggro) * (turtle ? 4 : 1), () => { A.queue = ["T"]; setHold({}); });
       if (turtle && gap >= 9 && oGround) add(3 + 2 * L.aggro, () => { setHold({ [toward]: 1 }); A.think = 0.12; });
       if (hurry && gap >= 9) add(2.5, () => { setHold({ [toward]: 1 }); A.think = 0.12; });
       // answer to a move that keeps coming: get over it or around it
       if (A.rep >= 3 && F.t - A.repT < 1.2 && oGround && s.jump > 0 && gap < 70 && !/^air/.test(A.repId)) add(1.5 + A.lvl, () => { setHold({ u: 1, [toward]: 1 }); A.plan = "airhit"; });
-      if (A.rep >= 3 && F.t - A.repT < 1.2 && s.dash && s.dash.dmg && f.dashCd <= 0 && gap > 8) add(1.5 + A.lvl, () => { A.queue = ["X"]; setHold({ [toward]: 1 }); });
+      if (A.rep >= 3 && F.t - A.repT < 1.2 && s.dash && s.dash.dmg && f.dashCd <= 0 && gap > 8) add(0.5 + 1.25 * A.lvl, () => { A.queue = ["X"]; setHold({ [toward]: 1 }); });
       if (canRage && gap < 60) add(2.5 + 2 * L.aggro, () => { A.queue = ["RA"]; setHold({}); });
       // anti-air
       if (o.y > 14 && ms.uP && edge < 34) add(4 * L.punish + 0.5, () => { A.queue = ["uP"]; setHold({}); });
@@ -1393,16 +1407,16 @@ function aiInput(F, f, o, dt) {
           add(2.2 * (0.6 + L.aggro), () => setHold({ [toward]: 1 }));
           if (s.sp === "beam" && spReady(f)) add(1.6, () => { A.queue = ["S"]; setHold({}); });
           if (s.sp === "quake" && spReady(f) && gap > 60) add(1.5, () => { A.queue = ["S"]; setHold({}); });
-          if (s.dash && f.dashCd <= 0) add(1.5, () => { A.queue = ["X"]; setHold({ [toward]: 1 }); });
+          if (s.dash && f.dashCd <= 0) add(0.7 + 0.4 * A.lvl, () => { A.queue = ["X"]; setHold({ [toward]: 1 }); });
           if (s.sp === "leap" && spReady(f) && gap < 125) add(1.5, () => { A.queue = ["S"]; setHold({}); });
           if (s.sp === "rush" && spReady(f) && gap < 80) add(1.3, () => { A.queue = ["S"]; setHold({}); });
-          if (s.jump > 0) add((s.airJumps ? 1.5 : 0.4) * (o.ms.P.proj && !s.deflect ? 1 - 0.35 * A.lvl : 1 - JUMPY * A.lvl), () => { setHold({ u: 1, [toward]: 1 }); A.plan = "airhit"; }); // smarter CPUs jump less into a bishop's bolts
+          if (s.jump > 0) add((s.airJumps ? 1.5 : 0.4) * (o.ms.P.proj && !s.deflect ? 1 - 0.35 * A.lvl : 1 - JUMPY * Math.max(0.7, A.lvl)), () => { setHold({ u: 1, [toward]: 1 }); A.plan = "airhit"; }); // smarter CPUs jump less into a bishop's bolts
         } else {
           add(1.0, () => setHold({ [toward]: 1 }));
-          if (!hurry) add((1 - L.aggro) * 2.2, () => { setHold({ [away]: 1 }); A.think = 0.2 + rnd() * 0.25; });
+          if (!hurry) add((1 - L.aggro) * 2.6, () => { setHold({ [away]: 1 }); A.think = 0.2 + rnd() * 0.25; });
           if (spReady(f) && s.sp !== "quake") add(0.7, () => { A.queue = ["S"]; setHold({}); });
           if (s.sp === "quake" && spReady(f) && gap > 30) add(0.6, () => { A.queue = ["S"]; setHold({}); });
-          if (s.jump > 0) add((s.airJumps ? 0.9 : 0.3) * (o.ms.P.proj && !s.deflect ? 1 - 0.35 * A.lvl : 1 - JUMPY * A.lvl), () => { setHold({ u: 1, [toward]: gap > 18 ? 1 : 0 }); A.plan = "airhit"; });
+          if (s.jump > 0) add((s.airJumps ? 0.9 : 0.3) * (o.ms.P.proj && !s.deflect ? 1 - 0.35 * A.lvl : 1 - JUMPY * Math.max(0.7, A.lvl)), () => { setHold({ u: 1, [toward]: gap > 18 ? 1 : 0 }); A.plan = "airhit"; });
           if (!s.dash && f.dashCd <= 0) add(0.25, () => { A.queue = ["X"]; setHold({}); });
         }
       }
@@ -1430,6 +1444,7 @@ function aiInput(F, f, o, dt) {
         out.l = out.r = out.u = out.d = 0;
         if (dir === "f") out[toward] = 1; else if (dir === "b") out[away] = 1; else if (dir === "d") out.d = 1; else if (dir === "u") out.u = 1;
         out[btn === "P" ? "p" : "k"] = 1;
+        if (!A.queue.length && f.y <= 0) A.resting = true;
       }
     }
   }
@@ -1546,15 +1561,17 @@ function allLegal(St, color) {
 // Chance the attacker wins a duel. DUEL_ODDS holds measured CPU-vs-CPU win rates at full health
 // (thousands of simulated duels per pairing); the health each piece has left then shifts the odds.
 const DUEL_ODDS = {
-  P: { P: .50, N: .13, B: .16, R: .12, Q: .07 },
-  N: { P: .85, N: .50, B: .52, R: .50, Q: .31 },
-  B: { P: .82, N: .48, B: .50, R: .40, Q: .22 },
-  R: { P: .88, N: .50, B: .60, R: .50, Q: .34 },
-  Q: { P: .93, N: .69, B: .78, R: .66, Q: .50 },
+  P: { P: .50, N: .13, B: .16, R: .12, Q: .04 },
+  N: { P: .87, N: .50, B: .55, R: .52, Q: .28 },
+  B: { P: .84, N: .45, B: .50, R: .50, Q: .23 },
+  R: { P: .88, N: .48, B: .50, R: .50, Q: .28 },
+  Q: { P: .96, N: .72, B: .77, R: .72, Q: .50 },
 };
 function duelOdds(a, d) {
-  const p0 = DUEL_ODDS[a.t][d.t], fa = a.hp / STATS[a.t].hp, fd = d.hp / STATS[d.t].hp;
-  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), 1.5);
+  const fa = a.hp / STATS[a.t].hp, fd = d.hp / STATS[d.t].hp;
+  // two badly hurt pieces fight a short, swingy duel, so the stronger type's edge shrinks with the health left
+  const p0 = 0.5 + (DUEL_ODDS[a.t][d.t] - 0.5) * (0.35 + 0.65 * Math.min(fa, fd));
+  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), a.t === "P" || d.t === "P" ? 1.3 : 2.4); // a pawn's bar is short and Last Stand makes a hurt pawn dangerous
   return odds / (1 + odds);
 }
 function evalBoard(B, me) {
@@ -2800,9 +2817,9 @@ const THROW_POSE = {
   N: { hold: { lh: [17, 45, -4], rh: [16, 42, 5], lean: .12, open: .2 },                                   // Rodeo Vault: hop and drive both feet through
        up: { lh: [14, 50, -5], rh: [12, 48, 6], lf: [10, 24, -3], rf: [8, 22, 3], lean: -.1, hip: [0, 33, 0] },
        fin: { lh: [-4, 42, -9], rh: [-8, 40, 9], lf: [25, 35, -2], rf: [23, 32, 3], lean: -.7, hip: [3, 34, 0], hp: .5 } },
-  B: { hold: { lh: [22, 34, -3], rh: [8, 32, 5], lean: .15, open: .3 },                                    // Crook Hook: hook the ankles, yank
+  B: { hold: { lh: [22, 34, -3], rh: [8, 32, 5], lean: .15, open: .3, sd: [0.22, 1, 0] },                                    // Crook Hook: hook the ankles, yank
        up: { lh: [25, 9, -2], rh: [11, 17, 4], lean: .45, hip: [3, 26, 0] },
-       fin: { lh: [5, 42, -3], rh: [-9, 31, 5], lean: -.22, hip: [-4, 30.5, 0], open: .9 } },
+       fin: { lh: [5, 42, -3], rh: [-9, 31, 5], lean: -.22, hip: [-4, 30.5, 0], open: .9, sd: [0.22, 1, 0] } },
   R: { hold: { lh: [17, 45, -4], rh: [16, 42, 5], lean: .12, open: .2 },                                   // Tower Slam: press overhead, slam
        up: { lh: [10, 66, -6], rh: [8, 66, 7], lean: -.12, open: .2, hip: [0, 29, 0] },
        fin: { lh: [20, 14, -5], rh: [18, 12, 6], lean: .7, hip: [4, 23, 0], open: .2 } },
@@ -2891,10 +2908,12 @@ function fighterPose(f, F, time) {
   if (st === "jump") return jumpPose(f, S);
   if (st === "land" && f.finT != null && F.t - f.finT < 0.5) return poseMix(RAGE_FIN[f.t].hit, poseOver(S), eIO(sat((t - 0.22) / 0.2))); // hold the finisher, each piece its own
   if (st === "land") return poseOver(S, { hip: [0, S.hip[1] - 6, 0], lean: S.lean + .2, lh: [14, 34, -7], rh: [6, 34, 8] });
-  if (st === "walk") return walkPose(f, time);
+  const opp = F.att === f ? F.def : F.att, room = sat((Math.abs(opp.x - f.x) - f.s.hw - opp.s.hw - 3) / 16);
+  const tuck = p => { if (room < 1 && opp.y < 20) { const k = 0.35 + 0.65 * room; p.lh = [p.lh[0] * k, p.lh[1], p.lh[2] - 4 * (1 - room)]; p.rh = [p.rh[0] * k, p.rh[1], p.rh[2] + 4 * (1 - room)]; } return p; }; // nose to nose, the guard is pulled in so fists and weapons do not sink into the other fighter
+  if (st === "walk") return tuck(walkPose(f, time));
   const idle = idlePose(f, time);
   if (f.t === "B") { const o = F.att === f ? F.def : F.att; if (Math.abs(o.x - f.x) < 50) { idle.sd = [0.22, 1, 0]; idle.lh = [11, 45, -3]; idle.rh = [5, 29, 6]; } } // staff held upright at close range so it does not skewer the opponent
-  return idle;
+  return tuck(idle);
 }
 function jumpPose(f, S) {
   const up = f.vy < -40, p = poseOver(S, up ? { lf: [7, 12, -3], rf: [-3, 9, 4], lh: [10, 48, -8], rh: [0, 48, 9], lean: S.lean + .1, lfp: .6, rfp: .6 }
@@ -3131,7 +3150,7 @@ function directCamera(F, rdt, time) {
   const a = F.f.w, b = F.f.b, ax = wx(a.x), bx = wx(b.x), mid = (ax + bx) / 2, sep = Math.abs(ax - bx);
   const wide = Math.max(1, 1.62 / R3.camera.aspect);
   const top = R3.models.reduce((v, m) => Math.max(v, m.f.y + (m.view ? Math.max(0, m.view.dy) : 0)), 0); // highest fighter: lift and pull back so jumps stay in frame
-  const s = { shot: "fight", lx: mid, ly: 3.3 + top / 17, dist: (clamp(12.5 + sep * 0.66, 16, 27) + top * 0.17) * wide, yaw: -mid / 17 * 0.1 + Math.sin(time * 0.31) * 0.02, pitch: 0.035, k: 0.12 };
+  const s = { shot: "fight", lx: mid, ly: 3.3 + top / 17, dist: (clamp(12.5 + sep * 0.66, 16, 27) + top * 0.17 + Math.max(0, top - 80) * 0.14) * wide, yaw: -mid / 17 * 0.1 + Math.sin(time * 0.31) * 0.02, pitch: 0.035, k: 0.12 };
   const solo = (f, d, yaw, pitch, ly) => { const m = R3.models.find(mm => mm.f === f), dy = m ? m.view.dy : 0, dx = m ? m.view.dx * f.face : 0; s.lx = wx(f.x + dx) + f.face * 0.4; s.ly = (ly || 3.7) + (f.y + dy * 0.8) / 10; s.dist = d * Math.max(1, wide * 0.8); s.yaw = yaw; s.pitch = pitch; };
   if (F.phase === "intro") {
     const I = F.intro, t = F.phaseT;
@@ -3148,7 +3167,7 @@ function directCamera(F, rdt, time) {
   } else if (F.phase === "outro") {
     const r = F.result, w = r.attackerWon ? F.att : F.def, l = r.attackerWon ? F.def : F.att, t = F.outroT;
     if (t < F.outro.tWin) { s.shot = "ko"; s.lx = wx(l.x) * 0.8 + wx(w.x) * 0.2; s.ly = Math.max(2.4, (l.y + 20) / 10); s.dist = (17.5 - Math.min(2.5, t * 1.6)) * wide; s.yaw = (0.12 + t * 0.14) * (l.face > 0 ? -1 : 1); s.k = 0.2; }
-    else { const u = t - F.outro.tWin; s.shot = "win"; solo(w, 13 - Math.min(1.5, u * 0.8), w.face * (0.5 - Math.min(0.2, u * 0.1)), -0.05, 3.8); s.k = 0.2; }
+    else { const u = t - F.outro.tWin; s.shot = "win"; solo(w, 14.6 - Math.min(1.5, u * 0.8), w.face * (0.5 - Math.min(0.2, u * 0.1)), -0.05, 3.6); s.k = 0.2; }
   }
   const tx = s.lx + Math.sin(s.yaw) * s.dist, tz = Math.cos(s.yaw) * s.dist, ty = Math.max(0.6, s.ly + 0.1 + s.dist * s.pitch), C = R3.cam;
   if (R3.shot !== s.shot && !(s.shot === "fight" && (R3.shot === "introW" || R3.shot === "sp")) && s.shot !== "sp") { C.x = tx; C.y = ty; C.z = tz; C.lx = s.lx; C.ly = s.ly; }

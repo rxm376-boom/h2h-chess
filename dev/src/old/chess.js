@@ -100,15 +100,17 @@ function allLegal(St, color) {
 // Chance the attacker wins a duel. DUEL_ODDS holds measured CPU-vs-CPU win rates at full health
 // (thousands of simulated duels per pairing); the health each piece has left then shifts the odds.
 const DUEL_ODDS = {
-  P: { P: .50, N: .13, B: .16, R: .12, Q: .07 },
-  N: { P: .85, N: .50, B: .52, R: .50, Q: .31 },
-  B: { P: .82, N: .48, B: .50, R: .40, Q: .22 },
-  R: { P: .88, N: .50, B: .60, R: .50, Q: .34 },
-  Q: { P: .93, N: .69, B: .78, R: .66, Q: .50 },
+  P: { P: .50, N: .13, B: .16, R: .12, Q: .04 },
+  N: { P: .87, N: .50, B: .55, R: .52, Q: .28 },
+  B: { P: .84, N: .45, B: .50, R: .50, Q: .23 },
+  R: { P: .88, N: .48, B: .50, R: .50, Q: .28 },
+  Q: { P: .96, N: .72, B: .77, R: .72, Q: .50 },
 };
 function duelOdds(a, d) {
-  const p0 = DUEL_ODDS[a.t][d.t], fa = a.hp / STATS[a.t].hp, fd = d.hp / STATS[d.t].hp;
-  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), 1.5);
+  const fa = a.hp / STATS[a.t].hp, fd = d.hp / STATS[d.t].hp;
+  // two badly hurt pieces fight a short, swingy duel, so the stronger type's edge shrinks with the health left
+  const p0 = 0.5 + (DUEL_ODDS[a.t][d.t] - 0.5) * (0.35 + 0.65 * Math.min(fa, fd));
+  const odds = p0 / (1 - p0) * Math.pow(fa / Math.max(0.02, fd), a.t === "P" || d.t === "P" ? 1.3 : 2.4); // a pawn's bar is short and Last Stand makes a hurt pawn dangerous
   return odds / (1 + odds);
 }
 function evalBoard(B, me) {
