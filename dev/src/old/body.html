@@ -2,7 +2,7 @@
 <div class="wrap">
   <header class="top">
     <h1>H2H <span class="hl">Chess</span></h1>
-    <p class="tag">Real chess, where contested captures are fought out as arcade duels. Protect your pieces, bring backup, win the fight.</p>
+    <p class="tag">Real chess, where captures of protected pieces are fought out as arcade duels. Protect your pieces, bring backup, win the fight.</p>
     <button type="button" class="sndToggle" aria-label="Sound"></button>
   </header>
 
@@ -55,7 +55,7 @@
       <section class="card" aria-live="polite">
         <div class="label">To move</div>
         <div class="turn"><span class="chip w" id="turnChip"></span><span id="turnText">White</span></div>
-        <div class="status-note" id="statusNote">Tap a piece, then a square. Attacking an enemy starts a duel.</div>
+        <div class="status-note" id="statusNote">Tap a piece, then a square. Attacking a protected piece starts a duel.</div>
       </section>
 
       <section class="card">
@@ -123,7 +123,7 @@
           <summary>House rules</summary>
           <ul>
             <li>Normal chess moves. A capture starts a duel between the two pieces.</li>
-            <li><b>An undefended pawn is simply taken</b>, with no duel. Every other piece always gets its fight.</li>
+            <li><b>An unprotected piece is simply taken</b>, with no duel. A piece is protected when another piece of its side could recapture on its square. Only protected pieces get a fight.</li>
             <li><b>Backup counts.</b> Each other piece of yours that bears on the square (up to 3) starts your fighter with more SP and makes it hit 12% harder. This works for the attacker and the defender.</li>
             <li>If the attacker wins, it takes the square and keeps whatever HP it ended with. The loser is removed.</li>
             <li>If the attacker loses, the defender stays put and the attacker falls back to its own square with 25% health (or what it had, if that was less).</li>
