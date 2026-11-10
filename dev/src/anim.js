@@ -260,9 +260,9 @@ const THROW_POSE = {
   N: { hold: { lh: [17, 45, -4], rh: [16, 42, 5], lean: .12, open: .2 },                                   // Rodeo Vault: hop and drive both feet through
        up: { lh: [14, 50, -5], rh: [12, 48, 6], lf: [10, 24, -3], rf: [8, 22, 3], lean: -.1, hip: [0, 33, 0] },
        fin: { lh: [-4, 42, -9], rh: [-8, 40, 9], lf: [25, 35, -2], rf: [23, 32, 3], lean: -.7, hip: [3, 34, 0], hp: .5 } },
-  B: { hold: { lh: [22, 34, -3], rh: [8, 32, 5], lean: .15, open: .3 },                                    // Crook Hook: hook the ankles, yank
+  B: { hold: { lh: [22, 34, -3], rh: [8, 32, 5], lean: .15, open: .3, sd: [0.22, 1, 0] },                                    // Crook Hook: hook the ankles, yank
        up: { lh: [25, 9, -2], rh: [11, 17, 4], lean: .45, hip: [3, 26, 0] },
-       fin: { lh: [5, 42, -3], rh: [-9, 31, 5], lean: -.22, hip: [-4, 30.5, 0], open: .9 } },
+       fin: { lh: [5, 42, -3], rh: [-9, 31, 5], lean: -.22, hip: [-4, 30.5, 0], open: .9, sd: [0.22, 1, 0] } },
   R: { hold: { lh: [17, 45, -4], rh: [16, 42, 5], lean: .12, open: .2 },                                   // Tower Slam: press overhead, slam
        up: { lh: [10, 66, -6], rh: [8, 66, 7], lean: -.12, open: .2, hip: [0, 29, 0] },
        fin: { lh: [20, 14, -5], rh: [18, 12, 6], lean: .7, hip: [4, 23, 0], open: .2 } },
@@ -351,10 +351,12 @@ function fighterPose(f, F, time) {
   if (st === "jump") return jumpPose(f, S);
   if (st === "land" && f.finT != null && F.t - f.finT < 0.5) return poseMix(RAGE_FIN[f.t].hit, poseOver(S), eIO(sat((t - 0.22) / 0.2))); // hold the finisher, each piece its own
   if (st === "land") return poseOver(S, { hip: [0, S.hip[1] - 6, 0], lean: S.lean + .2, lh: [14, 34, -7], rh: [6, 34, 8] });
-  if (st === "walk") return walkPose(f, time);
+  const opp = F.att === f ? F.def : F.att, room = sat((Math.abs(opp.x - f.x) - f.s.hw - opp.s.hw - 3) / 16);
+  const tuck = p => { if (room < 1 && opp.y < 20) { const k = 0.35 + 0.65 * room; p.lh = [p.lh[0] * k, p.lh[1], p.lh[2] - 4 * (1 - room)]; p.rh = [p.rh[0] * k, p.rh[1], p.rh[2] + 4 * (1 - room)]; } return p; }; // nose to nose, the guard is pulled in so fists and weapons do not sink into the other fighter
+  if (st === "walk") return tuck(walkPose(f, time));
   const idle = idlePose(f, time);
   if (f.t === "B") { const o = F.att === f ? F.def : F.att; if (Math.abs(o.x - f.x) < 50) { idle.sd = [0.22, 1, 0]; idle.lh = [11, 45, -3]; idle.rh = [5, 29, 6]; } } // staff held upright at close range so it does not skewer the opponent
-  return idle;
+  return tuck(idle);
 }
 function jumpPose(f, S) {
   const up = f.vy < -40, p = poseOver(S, up ? { lf: [7, 12, -3], rf: [-3, 9, 4], lh: [10, 48, -8], rh: [0, 48, 9], lean: S.lean + .1, lfp: .6, rfp: .6 }
