@@ -7,7 +7,9 @@ function init3D() {
     const T = THREE;
     R3.lite = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches); // phones: no MSAA target, lower pixel ratio
     R3.calm = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const renderer = new T.WebGLRenderer({ canvas: $("arena3d"), antialias: true, powerPreference: "high-performance" });
+    // the picture goes through the post-processing chain, which smooths edges in its own target; multisampling the canvas as well would only cost memory and fill rate
+    const post = !!(T.EffectComposer && T.RenderPass && T.ShaderPass && T.UnrealBloomPass && T.CopyShader && T.LuminosityHighPassShader);
+    const renderer = new T.WebGLRenderer({ canvas: $("arena3d"), antialias: !post, powerPreference: "high-performance" });
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
     renderer.physicallyCorrectLights = false;
@@ -58,7 +60,7 @@ function init3D() {
     const edge = new T.Mesh(new T.BoxGeometry(88, 0.3, 0.4), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 }));
     edge.position.set(0, 0.15, -20); scene.add(edge);
 
-    const hall0 = scene.children.length;
+    const hallPre = new Set(scene.children);
     // Hall: back wall, glowing windows with light shafts, banners, giant pieces
     const wall = new T.Mesh(new T.PlaneGeometry(140, 50), new T.MeshStandardMaterial({ color: 0x1b1534, roughness: 0.95, map: bricks("#221b3e", "#120d24") }));
     wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall); R3.wall = wall; R3.banMats = null;
@@ -81,7 +83,7 @@ function init3D() {
       const geo = new T.PlaneGeometry(2.2, 8, 1, 6); geo.translate(0, -4, 0);
       const ban = new T.Mesh(geo, i % 2 ? banMat : banMat2); ban.position.set(bx, 17, -19.5); scene.add(ban);
       const rod = new T.Mesh(new T.CylinderGeometry(0.08, 0.08, 2.8, 8), gold); rod.rotation.z = Math.PI / 2; rod.position.set(bx, 17, -19.4); scene.add(rod);
-      R3.banners.push(ban);
+      ban.userData.keep = 1; R3.banners.push(ban);
     }
     const bgMat = new T.MeshStandardMaterial({ color: 0x0f0b1e, roughness: 0.25, metalness: 0.5 });
     [["R", -30], ["K", -15], ["Q", 15], ["B", 30]].forEach(([k, x]) => {
@@ -89,7 +91,8 @@ function init3D() {
       if (k === "R") for (let a = 0; a < 4; a++) { const c = new T.Mesh(new T.BoxGeometry(0.6, 0.7, 0.6), bgMat); c.scale.setScalar(0.86); c.position.set(x + Math.cos(a * Math.PI / 2) * 1.6, 9.95, -18 + Math.sin(a * Math.PI / 2) * 1.6); scene.add(c); }
       if (k === "K") { const c1 = new T.Mesh(new T.BoxGeometry(0.35, 1.6, 0.35), bgMat); c1.scale.setScalar(0.86); c1.position.set(x, 12.4, -18); scene.add(c1); const c2 = new T.Mesh(new T.BoxGeometry(1.1, 0.35, 0.35), bgMat); c2.scale.setScalar(0.86); c2.position.set(x, 12.6, -18); scene.add(c2); }
     });
-    R3.hallObjs = scene.children.slice(hall0); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
+    mergeStatic(scene, hallPre); // the hall's windows, bars, rods and statues never move: one mesh per material
+    R3.hallObjs = scene.children.filter(o => !hallPre.has(o)); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
     // Braziers at the arena edges
     R3.braziers = [];
     for (const x of [wx(WALL_L) - 0.6, wx(WALL_R) + 0.6]) {
@@ -180,47 +183,53 @@ function makeParticles(max, additive) {
     transparent: true, depthWrite: false, blending: additive ? T.AdditiveBlending : T.NormalBlending,
   });
   const pts = new T.Points(g, mat); pts.frustumCulled = false;
-  return { pts, mat, g, max, list: [] };
+  // live particles sit in one flat array (PS floats each), so a burst leaves nothing behind for the garbage collector
+  return { pts, mat, g, max, n: 0, d: new Float32Array(max * PS) };
 }
-const _c = window.THREE ? new THREE.Color() : null;
+const PS = 20, _c = window.THREE ? new THREE.Color() : null, _cc = new Map();
+function pcol(s) { let c = _cc.get(s); if (!c) { _c.set(s); _cc.set(s, c = [_c.r, _c.g, _c.b]); } return c; }
 function emit(sys, o) {
-  if (sys.list.length >= sys.max) sys.list.shift();
-  _c.set(o.col || "#ffffff");
-  const c2 = o.col2 ? new THREE.Color(o.col2) : null;
-  sys.list.push({ x: o.x, y: o.y, z: o.z || 0, vx: o.vx || 0, vy: o.vy || 0, vz: o.vz || 0, life: 0, max: o.life || 0.5,
-    s0: o.size || 0.2, s1: o.size1 != null ? o.size1 : (o.size || 0.2) * 0.3, r: _c.r, g: _c.g, b: _c.b, c2,
-    drag: o.drag != null ? o.drag : 3, grav: o.grav || 0, a0: o.alpha != null ? o.alpha : 1 });
+  const d = sys.d;
+  if (sys.n >= sys.max) { d.copyWithin(0, PS, sys.n * PS); sys.n--; } // full: the oldest goes
+  const i = sys.n++ * PS, c = pcol(o.col || "#ffffff"), c2 = o.col2 ? pcol(o.col2) : c, s0 = o.size || 0.2;
+  d[i] = o.x; d[i + 1] = o.y; d[i + 2] = o.z || 0; d[i + 3] = o.vx || 0; d[i + 4] = o.vy || 0; d[i + 5] = o.vz || 0; d[i + 6] = 0; d[i + 7] = o.life || 0.5;
+  d[i + 8] = s0; d[i + 9] = o.size1 != null ? o.size1 : s0 * 0.3; d[i + 10] = c[0]; d[i + 11] = c[1]; d[i + 12] = c[2]; d[i + 13] = c2[0]; d[i + 14] = c2[1]; d[i + 15] = c2[2];
+  d[i + 16] = o.drag != null ? o.drag : 3; d[i + 17] = o.grav || 0; d[i + 18] = o.alpha != null ? o.alpha : 1; d[i + 19] = 0;
 }
+const _bo = {};
 function burst(sys, x, y, z, n, o) {
+  const e = _bo, jit = o.jit || 0, many = Array.isArray(o.col);
+  e.z = z; e.size1 = o.size1; e.col2 = o.col2; e.drag = o.drag; e.grav = o.grav; e.alpha = o.alpha;
   for (let i = 0; i < n; i++) {
     const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), sp = o.spd[0] + Math.random() * (o.spd[1] - o.spd[0]);
     let dx = Math.sin(ph) * Math.cos(th), dy = Math.cos(ph), dz = Math.sin(ph) * Math.sin(th) * (o.flatZ != null ? o.flatZ : 0.6);
     if (o.up) dy = Math.abs(dy) * o.up;
     if (o.dir) dx = Math.abs(dx) * o.dir;
-    emit(sys, { x: x + (Math.random() - 0.5) * (o.jit || 0), y: y + (Math.random() - 0.5) * (o.jit || 0), z, vx: dx * sp, vy: dy * sp, vz: dz * sp,
-      life: o.life[0] + Math.random() * (o.life[1] - o.life[0]), size: o.size[0] + Math.random() * (o.size[1] - o.size[0]), size1: o.size1,
-      col: Array.isArray(o.col) ? o.col[(Math.random() * o.col.length) | 0] : o.col, col2: o.col2, drag: o.drag, grav: o.grav, alpha: o.alpha });
+    e.x = x + (Math.random() - 0.5) * jit; e.y = y + (Math.random() - 0.5) * jit; e.vx = dx * sp; e.vy = dy * sp; e.vz = dz * sp;
+    e.life = o.life[0] + Math.random() * (o.life[1] - o.life[0]); e.size = o.size[0] + Math.random() * (o.size[1] - o.size[0]);
+    e.col = many ? o.col[(Math.random() * o.col.length) | 0] : o.col;
+    emit(sys, e);
   }
 }
 function stepParticles(sys, dt) {
-  const L = sys.list, pos = sys.g.attributes.position.array, col = sys.g.attributes.pcol.array, sz = sys.g.attributes.psize.array, al = sys.g.attributes.palpha.array;
+  const d = sys.d, A = sys.g.attributes, pos = A.position.array, col = A.pcol.array, sz = A.psize.array, al = A.palpha.array;
   let n = 0;
-  for (let i = 0; i < L.length; i++) {
-    const p = L[i]; p.life += dt;
-    if (p.life >= p.max) continue;
-    const k = p.life / p.max, dr = Math.exp(-p.drag * dt);
-    p.vx *= dr; p.vy = p.vy * dr + p.grav * dt; p.vz *= dr;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    if (p.y < 0.02 && p.grav < 0) { p.y = 0.02; p.vy *= -0.3; }
-    L[n] = p;
-    pos[n * 3] = p.x; pos[n * 3 + 1] = p.y; pos[n * 3 + 2] = p.z;
-    const fade = (1 - k) * p.a0;
-    if (p.c2) { col[n * 3] = p.r + (p.c2.r - p.r) * k; col[n * 3 + 1] = p.g + (p.c2.g - p.g) * k; col[n * 3 + 2] = p.b + (p.c2.b - p.b) * k; }
-    else { col[n * 3] = p.r; col[n * 3 + 1] = p.g; col[n * 3 + 2] = p.b; }
-    sz[n] = p.s0 + (p.s1 - p.s0) * k; al[n] = fade;
+  for (let j = 0, i = 0; j < sys.n; j++, i += PS) {
+    const life = d[i + 6] + dt, max = d[i + 7];
+    if (life >= max) continue;
+    const k = life / max, dr = Math.exp(-d[i + 16] * dt), grav = d[i + 17];
+    let vx = d[i + 3] * dr, vy = d[i + 4] * dr + grav * dt, vz = d[i + 5] * dr;
+    let x = d[i] + vx * dt, y = d[i + 1] + vy * dt, z = d[i + 2] + vz * dt;
+    if (y < 0.02 && grav < 0) { y = 0.02; vy *= -0.3; }
+    const o = n * PS;
+    if (o !== i) d.copyWithin(o, i, i + PS);
+    d[o] = x; d[o + 1] = y; d[o + 2] = z; d[o + 3] = vx; d[o + 4] = vy; d[o + 5] = vz; d[o + 6] = life;
+    pos[n * 3] = x; pos[n * 3 + 1] = y; pos[n * 3 + 2] = z;
+    col[n * 3] = d[o + 10] + (d[o + 13] - d[o + 10]) * k; col[n * 3 + 1] = d[o + 11] + (d[o + 14] - d[o + 11]) * k; col[n * 3 + 2] = d[o + 12] + (d[o + 15] - d[o + 12]) * k;
+    sz[n] = d[o + 8] + (d[o + 9] - d[o + 8]) * k; al[n] = (1 - k) * d[o + 18];
     n++;
   }
-  L.length = n;
-  for (const a of ["position", "pcol", "psize", "palpha"]) sys.g.attributes[a].needsUpdate = true;
-  sys.g.setDrawRange(0, n);
+  sys.n = n;
+  if (n || sys.drawn) { A.position.needsUpdate = A.pcol.needsUpdate = A.psize.needsUpdate = A.palpha.needsUpdate = true; }
+  sys.drawn = n; sys.g.setDrawRange(0, n);
 }

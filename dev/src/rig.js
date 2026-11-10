@@ -232,9 +232,68 @@ function buildModel(f) {
   }
 
   mdl.head = buildHead(t, M, mdl); mdl.head.scale.setScalar(6.5); body.add(mdl.head);
+  // every part that only ever moves with its bone is welded to its neighbours of the same material: same picture, a third of the draw calls
+  const keep = new Set(), mark = v => { if (!v || typeof v !== "object") return; if (v.isObject3D) keep.add(v); else if (Array.isArray(v)) v.forEach(mark); };
+  for (const k in mdl) mark(mdl[k]); for (const k in mdl.extra) mark(mdl.extra[k]); for (const k in S) mark(S[k]); for (const ch of mdl.chains) mark(ch.list);
+  mdl.src = []; root.traverse(o => { if (o.isMesh) { o.updateMatrix(); mdl.src.push({ parent: o.parent, p: o.position.clone(), mat: o.material }); } }); // where the shards fly from when it shatters
+  mergeStatic(root, keep);
   root.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
-  R3.scene.add(root);
   return mdl;
+}
+// models are built once per piece type and side, then reused for every later duel
+function getModel(f) {
+  const C = R3.modelCache || (R3.modelCache = {}), key = f.t + f.color;
+  const mdl = C[key] || (C[key] = buildModel(f));
+  mdl.f = f; mdl.view = poseOver(STANCE[f.t]); mdl.fxT = {}; mdl.gone = false; mdl.root.visible = true;
+  for (const ch of mdl.chains) for (const g of ch.list) delete g.userData.a;
+  R3.scene.add(mdl.root);
+  return mdl;
+}
+/* ---------- welding static parts ---------- */
+function mergeGeoms(parts) { // parts: [{ geo, matrix }] -> one indexed geometry in the parent's space
+  const T = THREE; let nv = 0, ni = 0;
+  for (const q of parts) { nv += q.geo.attributes.position.count; ni += q.geo.index ? q.geo.index.count : q.geo.attributes.position.count; }
+  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const v = new T.Vector3(), nm = new T.Matrix3(); let vo = 0, io = 0;
+  for (const q of parts) {
+    const g = q.geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, flip = q.matrix.determinant() < 0;
+    nm.getNormalMatrix(q.matrix);
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(q.matrix); pos[(vo + i) * 3] = v.x; pos[(vo + i) * 3 + 1] = v.y; pos[(vo + i) * 3 + 2] = v.z;
+      if (N) { v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(vo + i) * 3] = v.x; nor[(vo + i) * 3 + 1] = v.y; nor[(vo + i) * 3 + 2] = v.z; }
+      if (U) { uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i); }
+    }
+    const n = g.index ? g.index.count : P.count;
+    for (let i = 0; i < n; i += 3) {
+      const a = g.index ? g.index.getX(i) : i, b = g.index ? g.index.getX(i + 1) : i + 1, c = g.index ? g.index.getX(i + 2) : i + 2;
+      idx[io++] = vo + a; idx[io++] = vo + (flip ? c : b); idx[io++] = vo + (flip ? b : c);
+    }
+    vo += P.count;
+  }
+  const out = new T.BufferGeometry();
+  out.setAttribute("position", new T.BufferAttribute(pos, 3)); out.setAttribute("normal", new T.BufferAttribute(nor, 3)); out.setAttribute("uv", new T.BufferAttribute(uv, 2));
+  out.setIndex(new T.BufferAttribute(idx, 1));
+  return out;
+}
+function mergeStatic(root, keep) {
+  const groups = [];
+  root.traverse(par => {
+    if (par.isMesh && par !== root) return;
+    const by = new Map();
+    for (const m of par.children) {
+      if (!m.isMesh || m.children.length || (keep && keep.has(m)) || Array.isArray(m.material) || !m.geometry.attributes.normal || m.material.transparent || m.userData.keep) continue;
+      const k = m.material.uuid + (m.castShadow ? "c" : "") + (m.receiveShadow ? "r" : "") + (m.visible ? "v" : "") + m.renderOrder;
+      (by.get(k) || by.set(k, []).get(k)).push(m);
+    }
+    for (const list of by.values()) if (list.length > 1) groups.push({ par, list });
+  });
+  for (const { par, list } of groups) {
+    const parts = list.map(m => { m.updateMatrix(); return { geo: m.geometry, matrix: m.matrix }; });
+    const m0 = list[0], mm = new THREE.Mesh(mergeGeoms(parts), m0.material);
+    mm.castShadow = m0.castShadow; mm.receiveShadow = m0.receiveShadow; mm.visible = m0.visible; mm.renderOrder = m0.renderOrder;
+    for (const m of list) { par.remove(m); if (!m.geometry.userData.shared) m.geometry.dispose(); }
+    par.add(mm);
+  }
 }
 function buildHead(t, M, mdl) {
   const T = THREE, h = new T.Group();
