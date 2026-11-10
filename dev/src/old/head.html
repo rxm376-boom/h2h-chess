@@ -76,7 +76,7 @@ body.board3d .coords { display: none; }
 .board-frame { position: relative; }
 .board-frame.incheck { border-color: var(--ember); animation: checkpulse 1s ease-in-out infinite; }
 @keyframes checkpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(226,87,76,0); } 50% { box-shadow: 0 0 0 6px rgba(226,87,76,.55), 0 0 34px rgba(226,87,76,.6); } }
-.checkBanner { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; width: min(92%, 440px); background: rgba(120, 18, 18, .92); border: 2px solid #ff7a6a; border-radius: 8px; padding: 10px 14px; color: #fff; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.checkBanner { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); z-index: 5; width: min(92%, 440px); background: rgba(120, 18, 18, .92); border: 2px solid #ff7a6a; border-radius: 8px; padding: 10px 14px; color: #fff; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
 .cbX { position: absolute; top: 4px; right: 6px; width: 32px; height: 32px; border: 0; background: transparent; color: #ffd2c8; font-size: 24px; line-height: 1; cursor: pointer; border-radius: 6px; }
 .cbX:hover, .cbX:focus-visible { background: rgba(255,255,255,.15); }
 .checkBanner b { display: block; font-family: var(--font-display); font-size: 26px; letter-spacing: 3px; color: #ffd2c8; animation: checkblink 1s steps(2) infinite; }
@@ -376,4 +376,20 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
 .mlist dd { margin: 0; color: var(--ink); }
 .mlist dd i { font-style: normal; color: var(--muted); font-size: 11.5px; margin-left: 4px; }
 @media (prefers-reduced-motion: reduce) { .pc.healed .glyph, .plus { animation: none; } }
+
+.pbar { display: flex; align-items: center; gap: 8px; padding: 7px 10px; min-height: 40px; background: #171230; color: var(--ink); font-size: 14px; }
+.pbar .chip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--brass); flex: none; }
+.pbar .chip.w { background: var(--white-piece); } .pbar .chip.b { background: var(--black-piece); }
+.pbar b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38%; }
+.ptaken { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; font-size: 17px; line-height: 1; letter-spacing: -2px; }
+.ptaken .w { color: var(--white-piece); } .ptaken .b { color: #8d7fc0; }
+.clk { flex: none; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: 18px; padding: 3px 10px; border-radius: 4px; background: #0d0a1c; border: 1px solid var(--line); color: var(--muted); }
+.clk.run { color: #120e24; background: var(--brass); border-color: var(--brass); }
+.clk.low { color: var(--ember); } .clk.low.run { background: var(--ember); border-color: var(--ember); color: #fff; }
+.promoBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.promoBox { border-color: var(--brass); }
+.movelist { margin: 0; padding: 0; list-style: none; max-height: 150px; overflow-y: auto; font-size: 14px; font-variant-numeric: tabular-nums; }
+.movelist li { display: grid; grid-template-columns: 2.4em 1fr 1fr; gap: 6px; padding: 2px 0; color: var(--ink); }
+.movelist li b { color: var(--muted); font-weight: 400; }
+.vsInfo em { display: block; margin-top: 6px; font-style: normal; font-weight: 700; font-size: clamp(10px, 1.8vw, 15px); letter-spacing: .06em; }
 </style>

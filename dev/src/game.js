@@ -264,7 +264,7 @@ function hudEvent(F, e) {
 function startFight(att, def, onDone, opts) {
   keys.clear(); pressed.clear(); touch.pressed.clear(); touch.held = { l: 0, r: 0, u: 0, d: 0 };
   const lv = c => (c === CONFIG.human || NET.on ? null : opts && opts.ai !== undefined ? opts.ai : CONFIG.level);
-  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, opts && opts.seconds || CONFIG.fightSeconds);
+  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, opts && opts.seconds || CONFIG.fightSeconds, opts && opts.backup);
   F.practice = !!(opts && opts.practice); F.stage = opts && opts.stage || 0; F.me = CONFIG.human;
   if (NET.on) netDuelBegin(F);
   const tA = 0.1, tD = tA + INTRO_DUR[att.t] * 0.8, tWide = tD + INTRO_DUR[def.t] * 0.86;
@@ -294,7 +294,7 @@ function loop(now) {
 }
 function showPlate(f) {
   const p = $("plate");
-  p.innerHTML = `<small>${fight && fight.practice ? "PRACTICE" : f.isAtt ? "ATTACKER" : "DEFENDER"} · ${whoIs(f.color)}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP</span>`;
+  p.innerHTML = `<small>${fight && fight.practice ? "PRACTICE" : f.isAtt ? "ATTACKER" : "DEFENDER"} · ${whoIs(f.color)}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP${f.backup ? ` · Backup ×${f.backup}` : ""}</span>`;
   p.className = `plate ${f.color} ${f.face > 0 ? "lft" : "rgt"}`; restart(p, "go");
 }
 // one line reminding you what your piece does, shown under FIGHT!
@@ -364,14 +364,16 @@ function wipe(mid, after) { // shutters close, mid() runs hidden, shutters open
   const w = $("wipe"); w.hidden = false; w.className = "wipe"; void w.offsetWidth; w.classList.add("close"); duelSfx("swish");
   setTimeout(() => { mid(); requestAnimationFrame(() => { w.classList.add("open"); setTimeout(() => { w.hidden = true; w.className = "wipe"; if (after) after(); }, 420); }); }, 300);
 }
-function vsCard(att, def, behind, done) {
+function vsCard(att, def, bk, behind, done) {
   const c = $("vsCard"), fill = (side, p, isAtt) => {
     const el = c.querySelector(".vsHalf." + side), s = STATS[p.t];
     el.querySelector(".vsGlyph").textContent = GLYPH[p.t] + VS;
     el.querySelector("small").textContent = (isAtt ? "ATTACKER" : "DEFENDER") + (p.c === CONFIG.human ? " · YOU" : NET.on ? " · RIVAL" : " · CPU");
     el.querySelector("b").textContent = `${COLORNAME[p.c]} ${s.name}`;
     el.querySelector("i").style.width = (p.hp / s.hp * 100) + "%";
+    const n = bk ? (isAtt ? bk.a : bk.d) : 0;
     el.querySelector("span").textContent = `${p.hp} / ${s.hp} HP · ${s.style}`;
+    const em = el.querySelector("em"); em.hidden = !n; em.textContent = n ? `BACKUP ×${n} · +${n * BACKUP_SP} SP · +${Math.round(n * BACKUP_POW * 100)}% damage` : "";
   };
   fill("w", att.c === "w" ? att : def, att.c === "w"); fill("b", att.c === "b" ? att : def, att.c === "b");
   c.hidden = false; c.className = "vs"; void c.offsetWidth; c.classList.add("in"); duelSfx("vs");

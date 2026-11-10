@@ -229,7 +229,7 @@ function paintMarks() {
     h.visible = !!col; if (col) { h.material.color.setHex(col); h.material.opacity = op; }
     B3.dots[i].visible = !!tgt && !tgt.cap;
     const ring = B3.rings[i]; ring.visible = !!tgt && !!tgt.cap;
-    if (ring.visible) ring.material.emissive.setHex(B[tgt.fr][tgt.fc].t === "K" ? 0xe8b04a : 0xff4a2a);
+    if (ring.visible) ring.material.emissive.setHex(B[tgt.fr][tgt.fc].t === "K" || freeCapture(B, tgt) ? 0xe8b04a : 0xff4a2a);
     ring.userData.risky = ring.visible && riskyCapture(tgt);
   }
   B3.check = checkSq;
@@ -471,7 +471,7 @@ $("goView").addEventListener("click", () => { $("gameOver").hidden = true; });
 window.addEventListener("keydown", e => { if (e.key === "Escape" && !$("gameOver").hidden) $("gameOver").hidden = true; });
 
 /* ---------- Test hook ---------- */
-window.__h2h = { NET, get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
+window.__h2h = { NET, get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, endFight, backupFor, freeCapture, flagFall, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
 
 /* ---------- Boot ---------- */
 function start(data) {
