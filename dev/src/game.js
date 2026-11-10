@@ -186,7 +186,7 @@ function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.cl
 function announce(text, cls, sub) {
   const a = $("ann"), s = $("annSub");
   a.textContent = text; a.className = "ann " + (cls || ""); restart(a, "go");
-  s.textContent = sub || ""; s.className = "annSub" + (cls === "fight" ? " tip" : ""); if (sub) restart(s, "go");
+  s.textContent = sub || ""; s.className = "annSub" + (cls === "fight" || cls === "ready" ? " tip" : ""); if (sub) restart(s, "go");
 }
 function hudCall(f, text, tone) { const el = H.side[f.color].call; el.textContent = text; el.className = `callo ${f.color} ${tone || ""}`; restart(el, "go"); }
 function hudSetup(F) {
@@ -203,7 +203,7 @@ function hudSetup(F) {
   hud.className = "hud intro";
   $("skipBtn").hidden = false;
   const me = F.f[CONFIG.human];
-  for (const b of document.querySelectorAll(".pad .b-x")) b.textContent = me && me.s.dash ? "DASH" : "STEP";
+  for (const b of document.querySelectorAll(".pad .b-x")) b.textContent = me && me.s.dash ? "DASH" : "DODGE";
 }
 function hudFrame(F) {
   for (const c of ["w", "b"]) {
@@ -292,7 +292,7 @@ function showPlate(f) {
   p.className = `plate ${f.color} ${f.face > 0 ? "lft" : "rgt"}`; restart(p, "go");
 }
 // one line reminding you what your piece does, shown under FIGHT!
-const TIP = { P: "Sidestep in, body blows · hits harder below 25% health", N: "Double jump · air kicks knock bolts away", B: "Punch fires a bolt upward · forward + punch for the staff", R: "No jump · the dash hits · up + punch stops jump-ins", Q: "All-rounder · Special fires a bolt, duck it" };
+const TIP = { P: "Dodge in, body blows · hits harder below 25% health", N: "Double jump · air kicks knock bolts away", B: "Punch fires a bolt upward · forward + punch for the staff", R: "No jump · the dash hits · up + punch stops jump-ins", Q: "All-rounder · Special fires a bolt, duck it" };
 function stepDuel(F, rdt) {
   if (F.hold) return;
   if (F.phase === "intro") {
@@ -302,7 +302,7 @@ function stepDuel(F, rdt) {
     const at = (t, key, fn) => { if (F.phaseT >= t && !I.said[key]) { I.said[key] = 1; fn(); } };
     if (F.phaseT < I.tWide) { at(I.tA, "pa", () => showPlate(F.att)); at(I.tD, "pd", () => showPlate(F.def)); }
     at(I.tWide, "w", () => { $("plate").className = "plate"; hud.classList.remove("intro"); $("skipBtn").hidden = true; });
-    at(I.tReady, "r", () => { announce("READY?", "ready"); duelSfx("ready"); });
+    at(I.tReady, "r", () => { { const me = F.f[CONFIG.human]; announce("READY?", "ready", me && !me.ai ? (me.s.dash ? "Dash closes or opens the gap" : "Dodge slips past straight attacks") + " · Grab beats a blocker" : ""); } duelSfx("ready"); });
     at(I.tFight, "f", () => { const me = F.f[CONFIG.human]; announce("FIGHT!", "fight", me && !me.ai ? TIP[me.t] : ""); duelSfx("fight"); musicStart(); });
     if (F.phaseT >= I.end) { F.phase = "fight"; F.phaseT = 0; for (const f of [F.att, F.def]) f.stT = 0; }
     return;

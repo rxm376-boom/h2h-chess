@@ -439,9 +439,9 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
       <section class="card">
         <div class="label">Duel controls</div>
         <dl class="ctl">
-          <dt>Phone</dt><dd>Joystick on the left. Punch, Kick, Special, Dash (or Step) and Throw on the right.</dd>
-          <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dash or sidestep · <kbd>R</kbd>/<kbd>U</kbd> throw (or punch+kick)</dd>
-          <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. Sidestep dodges straight attacks. Throws beat blocking, press throw as you're grabbed to break out.</dd>
+          <dt>Phone</dt><dd>Joystick on the left. Punch, Kick, Special, Dodge (Dash for rook and queen) and Grab on the right.</dd>
+          <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dodge or dash · <kbd>R</kbd>/<kbd>U</kbd> grab (or punch+kick)</dd>
+          <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. <b>Dodge</b> (pawn, knight, bishop) slips sideways past a straight attack so you can hit back; rook and queen <b>dash</b> forward or back instead. <b>Grab</b> works up close and goes straight through a block; press Grab the moment you are grabbed to break free.</dd>
           <dt>Offence</dt><dd>Every piece has its own move list: strings like punch, punch, kick, a <b>launcher</b> on forward+kick to start juggles, lows on down, and a slow heavy on back+punch. Hitting someone mid-attack is a <b>counter hit</b> (+25%).</dd>
           <dt>Meter</dt><dd>Specials cost one of the two <b>SP bars</b>. They fill as you hit, block and get hit. Under 30% HP (and after losing a good chunk of the health you walked in with) you enter <b>rage</b>: hold <b>down + Special</b> for a one-time <b>rage art</b>. Blocking heavy hits still costs a sliver of health.</dd>
         </dl>
@@ -514,14 +514,14 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
     </div>
     <div class="keys">
       <div class="kc w"><span class="who" id="kcW">White</span><span id="kcWk"></span></div>
-      <div class="keyhelp"><kbd>WASD</kbd> move · <kbd>F</kbd> punch · <kbd>G</kbd> kick · <kbd>H</kbd> special · <kbd>E</kbd> dash / sidestep · <kbd>R</kbd> throw · hold back to block</div>
+      <div class="keyhelp"><kbd>WASD</kbd> move · <kbd>F</kbd> punch · <kbd>G</kbd> kick · <kbd>H</kbd> special · <kbd>E</kbd> dodge / dash · <kbd>R</kbd> grab · hold back to block</div>
       <div class="kc b"><span class="who" id="kcB">Black</span><span id="kcBk"></span></div>
     </div>
     <div class="rotate">Turn your phone sideways for a bigger arena.</div>
     <div class="touch" id="touch">
       <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
       <div class="pad">
-        <button type="button" class="b-t" data-b="t">THROW</button>
+        <button type="button" class="b-t" data-b="t">GRAB</button>
         <button type="button" class="b-x" data-b="x">DASH</button>
         <button type="button" class="b-s" data-b="s">SPECIAL</button>
         <button type="button" class="b-p" data-b="p">PUNCH</button>
@@ -565,13 +565,13 @@ const STEP_DUR = 0.36, STEP_INV = [0.03, 0.25], MAX_SEP = 196;
 const STATS = {
   P: { name: "Pawn", hp: 58, pow: 1.0, spd: 64, jump: 195, airJumps: 0, dash: null, hw: 15, sp: "rush", lastStand: true, value: 1,
        style: "Scrapper", spName: "Shoulder rush", throwName: "Shield Toss", rageName: "PAWN STORM",
-       notes: ["Boxer with a shield: fast jabs, body blows, a slide tackle", "Sidestep instead of a dash", "Hits 50% harder below 25% HP"] },
+       notes: ["Boxer with a shield: fast jabs, body blows, a slide tackle", "Dodge button sidesteps attacks (no dash)", "Hits 50% harder below 25% HP"] },
   N: { name: "Knight", hp: 112, pow: 1.12, airPow: 1.25, spd: 68, jump: 292, airJumps: 1, dash: null, hw: 15, sp: "leap", deflect: 2, value: 3,
        style: "Jumper", spName: "L-leap dive kick (knocks down)", throwName: "Rodeo Vault", rageName: "CAVALRY CHARGE",
-       notes: ["Kick specialist: flip-kick launcher, spinning heel", "Highest jump + double jump, air attacks hit 25% harder and kick bolts away", "Sidestep instead of a dash"] },
+       notes: ["Kick specialist: flip-kick launcher, spinning heel", "Highest jump + double jump, air attacks hit 25% harder and kick bolts away", "Dodge button sidesteps attacks (no dash)"] },
   B: { name: "Bishop", hp: 105, pow: 1.22, spd: 60, jump: 240, airJumps: 0, dash: null, hw: 15, sp: "blink", value: 3.2,
        style: "Diagonal zoner", spName: "Diagonal teleport (hold back to retreat)", throwName: "Crook Hook", rageName: "DIVINE DIAGONAL",
-       notes: ["Punch fires a 45° bolt: up from the ground, down from the air. Bolts ignore armor", "Long staff pokes keep enemies out", "Sidestep instead of a dash"] },
+       notes: ["Punch fires a 45° bolt: up from the ground, down from the air. Bolts ignore armor", "Long staff pokes keep enemies out", "Dodge button sidesteps attacks (no dash)"] },
   R: { name: "Rook", hp: 110, pow: 1.2, spd: 42, jump: 0, airJumps: 0, dash: { spd: 330, dur: 0.22, dmg: 6, air: false, cd: 1.7 }, hw: 16, sp: "quake", armor: 0.9, value: 5,
        style: "Tank", spName: "Floor shockwave (jump over it)", throwName: "Tower Slam", rageName: "FORTRESS CRASH",
        notes: ["Can't jump. Slow, heavy, long wind-ups", "Straight dash that hits", "Armor: takes 10% less, shrugs off light hits", "Up + punch = anti-air uppercut"] },
@@ -3428,7 +3428,7 @@ function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.cl
 function announce(text, cls, sub) {
   const a = $("ann"), s = $("annSub");
   a.textContent = text; a.className = "ann " + (cls || ""); restart(a, "go");
-  s.textContent = sub || ""; s.className = "annSub" + (cls === "fight" ? " tip" : ""); if (sub) restart(s, "go");
+  s.textContent = sub || ""; s.className = "annSub" + (cls === "fight" || cls === "ready" ? " tip" : ""); if (sub) restart(s, "go");
 }
 function hudCall(f, text, tone) { const el = H.side[f.color].call; el.textContent = text; el.className = `callo ${f.color} ${tone || ""}`; restart(el, "go"); }
 function hudSetup(F) {
@@ -3445,7 +3445,7 @@ function hudSetup(F) {
   hud.className = "hud intro";
   $("skipBtn").hidden = false;
   const me = F.f[CONFIG.human];
-  for (const b of document.querySelectorAll(".pad .b-x")) b.textContent = me && me.s.dash ? "DASH" : "STEP";
+  for (const b of document.querySelectorAll(".pad .b-x")) b.textContent = me && me.s.dash ? "DASH" : "DODGE";
 }
 function hudFrame(F) {
   for (const c of ["w", "b"]) {
@@ -3534,7 +3534,7 @@ function showPlate(f) {
   p.className = `plate ${f.color} ${f.face > 0 ? "lft" : "rgt"}`; restart(p, "go");
 }
 // one line reminding you what your piece does, shown under FIGHT!
-const TIP = { P: "Sidestep in, body blows · hits harder below 25% health", N: "Double jump · air kicks knock bolts away", B: "Punch fires a bolt upward · forward + punch for the staff", R: "No jump · the dash hits · up + punch stops jump-ins", Q: "All-rounder · Special fires a bolt, duck it" };
+const TIP = { P: "Dodge in, body blows · hits harder below 25% health", N: "Double jump · air kicks knock bolts away", B: "Punch fires a bolt upward · forward + punch for the staff", R: "No jump · the dash hits · up + punch stops jump-ins", Q: "All-rounder · Special fires a bolt, duck it" };
 function stepDuel(F, rdt) {
   if (F.hold) return;
   if (F.phase === "intro") {
@@ -3544,7 +3544,7 @@ function stepDuel(F, rdt) {
     const at = (t, key, fn) => { if (F.phaseT >= t && !I.said[key]) { I.said[key] = 1; fn(); } };
     if (F.phaseT < I.tWide) { at(I.tA, "pa", () => showPlate(F.att)); at(I.tD, "pd", () => showPlate(F.def)); }
     at(I.tWide, "w", () => { $("plate").className = "plate"; hud.classList.remove("intro"); $("skipBtn").hidden = true; });
-    at(I.tReady, "r", () => { announce("READY?", "ready"); duelSfx("ready"); });
+    at(I.tReady, "r", () => { { const me = F.f[CONFIG.human]; announce("READY?", "ready", me && !me.ai ? (me.s.dash ? "Dash closes or opens the gap" : "Dodge slips past straight attacks") + " · Grab beats a blocker" : ""); } duelSfx("ready"); });
     at(I.tFight, "f", () => { const me = F.f[CONFIG.human]; announce("FIGHT!", "fight", me && !me.ai ? TIP[me.t] : ""); duelSfx("fight"); musicStart(); });
     if (F.phaseT >= I.end) { F.phase = "fight"; F.phaseT = 0; for (const f of [F.att, F.def]) f.stT = 0; }
     return;

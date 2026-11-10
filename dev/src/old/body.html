@@ -61,9 +61,9 @@
       <section class="card">
         <div class="label">Duel controls</div>
         <dl class="ctl">
-          <dt>Phone</dt><dd>Joystick on the left. Punch, Kick, Special, Dash (or Step) and Throw on the right.</dd>
-          <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dash or sidestep · <kbd>R</kbd>/<kbd>U</kbd> throw (or punch+kick)</dd>
-          <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. Sidestep dodges straight attacks. Throws beat blocking, press throw as you're grabbed to break out.</dd>
+          <dt>Phone</dt><dd>Joystick on the left. Punch, Kick, Special, Dodge (Dash for rook and queen) and Grab on the right.</dd>
+          <dt>Keyboard</dt><dd><kbd>WASD</kbd> or arrows move · <kbd>F</kbd>/<kbd>J</kbd> punch · <kbd>G</kbd>/<kbd>K</kbd> kick · <kbd>H</kbd>/<kbd>L</kbd> special · <kbd>E</kbd>/<kbd>Space</kbd> dodge or dash · <kbd>R</kbd>/<kbd>U</kbd> grab (or punch+kick)</dd>
+          <dt>Defence</dt><dd>Hold <b>back</b> to block highs and mids, <b>down-back</b> to block lows. <b>Dodge</b> (pawn, knight, bishop) slips sideways past a straight attack so you can hit back; rook and queen <b>dash</b> forward or back instead. <b>Grab</b> works up close and goes straight through a block; press Grab the moment you are grabbed to break free.</dd>
           <dt>Offence</dt><dd>Every piece has its own move list: strings like punch, punch, kick, a <b>launcher</b> on forward+kick to start juggles, lows on down, and a slow heavy on back+punch. Hitting someone mid-attack is a <b>counter hit</b> (+25%).</dd>
           <dt>Meter</dt><dd>Specials cost one of the two <b>SP bars</b>. They fill as you hit, block and get hit. Under 30% HP (and after losing a good chunk of the health you walked in with) you enter <b>rage</b>: hold <b>down + Special</b> for a one-time <b>rage art</b>. Blocking heavy hits still costs a sliver of health.</dd>
         </dl>
@@ -136,14 +136,14 @@
     </div>
     <div class="keys">
       <div class="kc w"><span class="who" id="kcW">White</span><span id="kcWk"></span></div>
-      <div class="keyhelp"><kbd>WASD</kbd> move · <kbd>F</kbd> punch · <kbd>G</kbd> kick · <kbd>H</kbd> special · <kbd>E</kbd> dash / sidestep · <kbd>R</kbd> throw · hold back to block</div>
+      <div class="keyhelp"><kbd>WASD</kbd> move · <kbd>F</kbd> punch · <kbd>G</kbd> kick · <kbd>H</kbd> special · <kbd>E</kbd> dodge / dash · <kbd>R</kbd> grab · hold back to block</div>
       <div class="kc b"><span class="who" id="kcB">Black</span><span id="kcBk"></span></div>
     </div>
     <div class="rotate">Turn your phone sideways for a bigger arena.</div>
     <div class="touch" id="touch">
       <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
       <div class="pad">
-        <button type="button" class="b-t" data-b="t">THROW</button>
+        <button type="button" class="b-t" data-b="t">GRAB</button>
         <button type="button" class="b-x" data-b="x">DASH</button>
         <button type="button" class="b-s" data-b="s">SPECIAL</button>
         <button type="button" class="b-p" data-b="p">PUNCH</button>
