@@ -294,6 +294,15 @@ kbd { font: 600 12px var(--font-body); background: var(--panel-2); border: 1px s
 .hud button { pointer-events: auto; font: 600 calc(var(--u) * 1.8) / 1 var(--font-hud); letter-spacing: .14em; color: #fff; background: rgba(8, 5, 20, .6); border: 1px solid rgba(255, 255, 255, .35); border-radius: 99px; cursor: pointer; z-index: 3; position: absolute; min-height: 28px; min-width: 28px; }
 #skipBtn { right: 2%; top: 11.5%; padding: calc(var(--u) * .9) calc(var(--u) * 1.8) calc(var(--u) * .6); font-size: max(11px, calc(var(--u) * 1.8)); }
 #skipBtn[hidden] { display: none; }
+#exitBtn, #movesBtn { top: 11.5%; padding: calc(var(--u) * .9) calc(var(--u) * 1.8) calc(var(--u) * .6); font-size: max(11px, calc(var(--u) * 1.8)); }
+#exitBtn { left: 2%; } #movesBtn { left: calc(2% + max(64px, var(--u) * 12)); }
+#exitBtn[hidden], #movesBtn[hidden], .pMoves[hidden], .netWait[hidden] { display: none; }
+.pMoves { position: absolute; left: 2%; top: 19%; bottom: 4%; width: min(74%, 320px); overflow: auto; pointer-events: auto; z-index: 3; background: rgba(8, 5, 20, .82); border: 1px solid rgba(255, 255, 255, .25); border-radius: 10px; padding: 8px 12px; font: 13px/1.35 system-ui, sans-serif; color: #e9e4ff; }
+.pMoves dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; } .pMoves dt { color: #ffd98a; white-space: nowrap; } .pMoves dd { margin: 0; } .pMoves dd i { display: block; font-size: 11px; opacity: .65; font-style: normal; }
+.netWait { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); z-index: 3; background: rgba(8, 5, 20, .8); border: 1px solid rgba(255, 255, 255, .3); border-radius: 99px; padding: 6px 16px; font: 600 max(11px, calc(var(--u) * 1.9)) / 1.2 var(--font-hud); letter-spacing: .12em; color: #ffe9a8; }
+.netCode { font: 700 30px/1 var(--font-hud, monospace); letter-spacing: .3em; color: #ffd98a; margin: 6px 0; }
+.row.wrapbtns { gap: 8px; } .card select.wide { flex: 1; min-width: 0; }
+
 .hud .sndToggle { left: 50%; top: 15.5%; transform: translateX(-50%); width: max(28px, calc(var(--u) * 3.4)); height: max(28px, calc(var(--u) * 3.4)); padding: 0; opacity: .55; font-size: max(12px, calc(var(--u) * 1.6)); transition: opacity .3s; }
 .hud.intro .sndToggle, .hud.cine .sndToggle { opacity: 0; pointer-events: none; }
 .sndToggle::before { content: "♪"; } .sndToggle.off::before { content: "♪"; text-decoration: line-through; opacity: .5; }
@@ -428,12 +437,38 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
       </section>
 
       <section class="card">
-        <div class="label">Match vs CPU</div>
+        <div class="label" id="matchLabel">Match vs CPU</div>
         <div class="row"><label for="side">You play</label>
           <select id="side"><option value="w">White</option><option value="b">Black</option></select></div>
         <div class="row"><label for="level">CPU level</label>
           <select id="level"><option value="0">Easy</option><option value="1" selected>Normal</option><option value="2">Hard</option></select></div>
         <div class="row"><button class="btn" id="newGame" type="button">New game</button><span class="hint">Changing side starts a new game.</span></div>
+      </section>
+
+      <section class="card" id="onlineCard">
+        <div class="label">Play online</div>
+        <div id="netIdle">
+          <div class="hint">Play a friend on another device. One of you creates a room and shares the code.</div>
+          <div class="row wrapbtns"><button class="btn" id="netCreate" type="button">Create room</button><button class="btn ghost" id="netJoin" type="button">Join room</button></div>
+        </div>
+        <div id="netBusy" hidden>
+          <div class="netCode" id="netCode" hidden></div>
+          <div class="status-note" id="netStatus" aria-live="polite"></div>
+          <div class="row"><button class="btn ghost" id="netLeave" type="button">Leave</button></div>
+        </div>
+      </section>
+
+      <section class="card" id="practiceCard">
+        <div class="label">Practice</div>
+        <div class="row"><label for="prMe">Your fighter</label>
+          <select id="prMe" class="wide"><option value="P">Pawn</option><option value="N" selected>Knight</option><option value="B">Bishop</option><option value="R">Rook</option><option value="Q">Queen</option></select></div>
+        <div class="row"><label for="prOpp">Opponent</label>
+          <select id="prOpp" class="wide"><option value="P">Pawn</option><option value="N">Knight</option><option value="B">Bishop</option><option value="R" selected>Rook</option><option value="Q">Queen</option></select></div>
+        <div class="row"><label for="prAi">It will</label>
+          <select id="prAi" class="wide"><option value="dummy" selected>Stand still</option><option value="0">Fight back (Easy)</option><option value="1">Fight back (Normal)</option><option value="2">Fight back (Hard)</option></select></div>
+        <div class="row"><label for="prStage">Arena</label>
+          <select id="prStage" class="wide"><option value="0">Grand Hall</option><option value="1">Moonlit Courtyard</option><option value="2">Throne Vault</option></select></div>
+        <div class="row"><button class="btn" id="prGo" type="button">Start practice</button><span class="hint">Does not touch your chess game.</span></div>
       </section>
 
       <section class="card">
@@ -510,6 +545,9 @@ header.top .sndToggle { font: 600 16px var(--font-body); width: 36px; height: 36
         <div class="hudFlash" id="hudFlash"></div>
         <button type="button" class="sndToggle" aria-label="Sound"></button>
         <button type="button" id="skipBtn" hidden>SKIP INTRO</button>
+        <button type="button" id="exitBtn" hidden>EXIT</button><button type="button" id="movesBtn" hidden>MOVES</button>
+        <div class="pMoves" id="pMoves" hidden><dl id="pMovesList"></dl></div>
+        <div class="netWait" id="netWait" hidden>WAITING FOR RIVAL</div>
       </div>
     </div>
     <div class="keys">
@@ -1624,6 +1662,7 @@ function chooseCpuMove(color) {
 }
 const isCpuTurn = () => S.turn === cpuColor() && !S.over;
 function maybeCpuTurn() {
+  if (NET.on) { netPump(); return; }
   if (!isCpuTurn() || fight) return;
   render();
   const g = gameGen; // a new game started while a CPU move is pending must cancel it
@@ -1642,6 +1681,7 @@ function attemptMove(m) {
   const B = S.board, a = B[m.fr][m.fc];
   const d = m.cap ? B[m.cap.r][m.cap.c] : null;
   selected = null; targets = [];
+  netSendMove(m);
   if (!d || a.t === "K") { finishMove(m, null); return; }
   render();
   clashing = true;
@@ -1649,7 +1689,7 @@ function attemptMove(m) {
   // the arena loads behind it, and after the duel a shutter wipe returns to the same square before pulling back out.
   boardFocus(m.cap, 1);
   clash3D(m, () => vsCard(a, d,
-    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); lastDuelEnd = performance.now(); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0 }); },
+    () => { clashing = false; startFight(a, d, res => { boardFocus(m.cap, 1, true); lastDuelEnd = performance.now(); finishMove(m, res); boardFocus(null, 0); }, { hold: true, lightSq: (m.cap.r + m.cap.c) % 2 === 0, stage: stageFor(m.cap.r, m.cap.c) }); },
     () => { if (fight) fight.hold = false; }));
 }
 
@@ -1793,11 +1833,11 @@ function render() {
     el.innerHTML = html;
   }
   $("turnChip").className = "chip " + S.turn;
-  $("turnText").textContent = S.over ? "Game over" : COLORNAME[S.turn] + (S.turn === CONFIG.human ? " (you)" : " (CPU)");
+  $("turnText").textContent = S.over ? "Game over" : COLORNAME[S.turn] + (S.turn === CONFIG.human ? " (you)" : NET.on ? ` (${NET.peerName})` : " (CPU)");
   const note = $("statusNote");
   note.className = "status-note";
   if (S.over) { note.textContent = S.over.reason; note.classList.add("win"); }
-  else if (isCpuTurn()) note.textContent = checkSq ? "CPU is in check and thinking." : "CPU is thinking.";
+  else if (isCpuTurn()) note.textContent = NET.on ? `Waiting for ${NET.peerName} to move.` : checkSq ? "CPU is in check and thinking." : "CPU is thinking.";
   else if (checkSq) { note.textContent = "You're in check! Get your king out of danger. Losing a duel while still in check loses the game."; note.classList.add("alert"); }
   else if (selected) {
     const caps = targets.filter(m => m.cap).length;
@@ -1840,6 +1880,7 @@ function newGame() {
   if (fight || clashing) return; // never swap the board out from under a duel hand-off
   gameGen++;
   S = newState(); selected = null; targets = [];
+  nextId = 1;
   log(`New game. You play ${COLORNAME[CONFIG.human]}.`);
   render(); showStats(S.board[7][1]); maybeCpuTurn();
 }
@@ -2094,6 +2135,21 @@ function buildHead(t, M, mdl) {
   const T = THREE, h = new T.Group();
   const add = (geo, mat, x, y, z, sx, sy, sz, parent) => { const m = new T.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); m.scale.set(sx ?? 1, sy ?? sx ?? 1, sz ?? sx ?? 1); m.castShadow = true; (parent || h).add(m); return m; };
   const eyes = (x, y, z, r, sx) => { add(G3.sph, M.eye, x, y, z, r * (sx || 1), r, r); add(G3.sph, M.eye, x, y, -z, r * (sx || 1), r, r); };
+  // a carved face: deep sockets with small lit eyes, slanted brows, a nose ridge, cheeks, a mouth line and a jaw
+  const face = (x, y, w, o) => {
+    o = o || {};
+    for (const s of [-1, 1]) {
+      add(G3.sph, M.dark, x - 0.05, y, s * w, 0.09, 0.075, 0.125);
+      add(G3.sph, M.eye, x + 0.005, y - 0.008, s * w, 0.045, 0.036, 0.078);
+      const br = add(G3.box, o.brow || M.shade, x + 0.02, y + 0.105, s * (w + 0.01), 0.13, 0.055, 0.29); br.rotation.x = -s * (o.tilt ?? 0.32);
+      add(G3.sph, M.body, x - 0.21, y - 0.19, s * (w + 0.09), 0.13, 0.1, 0.14);
+    }
+    const nw = o.nose ?? 1, nose = add(G3.box, M.body, x + 0.03, y - 0.1, 0, 0.09, 0.25, 0.075 * nw); nose.rotation.z = -0.28;
+    add(G3.sph, M.body, x + 0.035, y - 0.21, 0, 0.055, 0.042, 0.075 * nw);
+    if (o.lips) add(G3.sph, o.lips, x - 0.055, y - 0.335, 0, 0.05, 0.034, o.mouth ?? 0.2); else add(G3.box, M.dark, x - 0.045, y - 0.34, 0, 0.05, 0.022, o.mouth ?? 0.24);
+    add(G3.sph, M.body, x - 0.3 + (o.jx || 0), y - 0.38, 0, 0.27, 0.28, o.jaw ?? 0.4);
+    add(G3.sph, M.body, x - 0.15 + (o.jx || 0), y - 0.52, 0, 0.12, 0.09, 0.15);
+  };
   if (t === "P") {
     add(G3.sph, M.body, 0, -0.05, 0, 0.76);
     add(new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), M.armor, 0, 0.05, 0, 0.86, 0.8, 0.86);
@@ -2101,10 +2157,10 @@ function buildHead(t, M, mdl) {
     add(new T.TorusGeometry(1.23, 0.05, 6, 32), M.trim, 0, 0.05, 0).rotation.x = Math.PI / 2;
     add(G3.box, M.trim, 0, 0.5, 0, 1.1, 0.1, 0.12);
     add(G3.sph, M.trim, 0, 0.88, 0, 0.12);
-    add(G3.box, M.dark, 0.62, -0.14, 0, 0.3, 0.2, 0.8);
-    eyes(0.7, -0.14, 0.24, 0.1, 0.7);
+    face(0.72, -0.14, 0.23, { tilt: 0.2, jaw: 0.46 });
+    add(G3.box, M.armor, 0.86, 0.0, 0, 0.07, 0.3, 0.09); // nose guard
     add(new T.TorusGeometry(0.6, 0.15, 10, 24), M.trim, 0, -0.68, 0).rotation.x = Math.PI / 2;
-    add(G3.box, M.armor, 0.55, -0.5, 0, 0.3, 0.34, 0.7); // chin guard
+    for (const z of [-0.6, 0.6]) add(G3.box, M.leather, 0.2, -0.4, z, 0.12, 0.7, 0.06).rotation.z = 0.5; // chin strap
   } else if (t === "N") {
     const s = new T.Shape();
     const pts = [[-0.6, -0.9], [-0.72, 0.2], [-0.5, 0.85], [-0.2, 1.15], [-0.05, 1.5], [0.12, 1.0], [0.6, 0.78], [1.25, 0.28], [1.42, -0.05], [1.25, -0.32], [0.62, -0.25], [0.32, -0.55], [0.22, -0.9]];
@@ -2116,8 +2172,14 @@ function buildHead(t, M, mdl) {
     add(G3.box, M.trim, 0.85, 0.42, 0, 0.95, 0.04, 0.94).rotation.z = -0.45;
     add(G3.box, M.leather, 0.85, -0.1, 0, 0.08, 0.6, 1.02);
     add(G3.sph, M.trim, 0.85, -0.1, 0.52, 0.08); add(G3.sph, M.trim, 0.85, -0.1, -0.52, 0.08);
-    eyes(0.45, 0.5, 0.47, 0.11, 1.4);
-    add(G3.sph, M.dark, 1.32, -0.05, 0.22, 0.06); add(G3.sph, M.dark, 1.32, -0.05, -0.22, 0.06);
+    for (const z of [-1, 1]) {
+      add(G3.sph, M.dark, 0.43, 0.5, z * 0.45, 0.17, 0.12, 0.07);
+      add(G3.sph, M.eye, 0.45, 0.49, z * 0.485, 0.1, 0.065, 0.05);
+      add(G3.box, M.shade, 0.47, 0.65, z * 0.47, 0.42, 0.09, 0.12).rotation.z = -0.5; // heavy brow
+      add(G3.sph, M.shade, 0.1, -0.1, z * 0.4, 0.42, 0.46, 0.14); // cheek
+      add(G3.sph, M.dark, 1.33, -0.02, z * 0.25, 0.08, 0.05, 0.05); // nostril
+      add(G3.box, M.dark, 1.02, -0.3, z * 0.47, 0.5, 0.025, 0.03).rotation.z = 0.12; // mouth line
+    }
     for (const z of [-0.3, 0.3]) { const ear = add(new T.ConeGeometry(0.14, 0.42, 8), M.body, -0.08, 1.5, z); ear.rotation.x = z; }
     mdl.mane = [];
     for (let i = 0; i < 7; i++) {
@@ -2133,8 +2195,8 @@ function buildHead(t, M, mdl) {
     add(G3.box, M.trim, 0.58, 0.8, 0, 0.06, 1.1, 0.12).rotation.z = -0.2;
     add(G3.sph, M.gem, 0.6, 0.72, 0, 0.12, 0.16, 0.12);
     add(G3.sph, M.trim, 0, 1.9, 0, 0.15);
-    add(G3.box, M.dark, 0.5, -0.12, 0, 0.3, 0.16, 0.7);
-    eyes(0.56, -0.12, 0.2, 0.08, 1.3);
+    face(0.57, -0.1, 0.19, { tilt: 0.12, jaw: 0.34, mouth: 0.18 });
+    add(G3.sph, M.hair, 0.42, -0.62, 0, 0.16, 0.3, 0.2); // pointed beard
     add(lathe([[0.62, 0.2], [0.72, -0.5], [0.5, -0.85]], 16, Math.PI * 1.0, Math.PI), M.robe); // hood drape at the back
     const halo = new T.Group(); halo.position.set(-0.55, 0.65, 0); halo.rotation.y = Math.PI / 2; h.add(halo); mdl.halo = halo;
     add(new T.TorusGeometry(1.15, 0.04, 6, 48), M.glow, 0, 0, 0, 1, 1, 1, halo);
@@ -2145,7 +2207,7 @@ function buildHead(t, M, mdl) {
     add(new T.CylinderGeometry(0.88, 0.88, 0.12, 8), M.trim, 0, -0.68, 0);
     add(new T.CylinderGeometry(0.87, 0.87, 0.08, 8), M.trim, 0, 0.76, 0);
     add(G3.box, M.dark, 0.76, 0.12, 0, 0.14, 0.26, 1.1);
-    add(G3.box, M.eye, 0.82, 0.12, 0, 0.04, 0.09, 0.95);
+    for (const z of [-1, 1]) { add(G3.box, M.eye, 0.82, 0.12, z * 0.24, 0.04, 0.085, 0.3).rotation.x = -z * 0.22; add(G3.box, M.stone, 0.8, 0.33, z * 0.27, 0.16, 0.14, 0.5).rotation.x = -z * 0.3; }
     add(G3.box, M.armor, 0.82, -0.25, 0, 0.1, 0.5, 0.18);
   } else if (t === "Q") {
     add(G3.sph, M.body, 0, 0, 0, 0.64);
@@ -2159,8 +2221,7 @@ function buildHead(t, M, mdl) {
       sp.rotation.set(Math.sin(an) * 0.2, 0, -Math.cos(an) * 0.2);
     }
     add(G3.sph, M.gem, 0.62, 0.58, 0, 0.12, 0.14, 0.1);
-    add(G3.box, M.dark, 0.5, 0.04, 0, 0.3, 0.13, 0.62);
-    eyes(0.58, 0.04, 0.2, 0.075, 1.3);
+    face(0.6, 0.06, 0.19, { tilt: 0.2, jaw: 0.3, mouth: 0.1, brow: M.hair, jx: 0.02, nose: 0.75, lips: M.cloth });
     add(G3.sph, M.trim, 0.05, -0.45, 0.62, 0.07); add(G3.sph, M.trim, 0.05, -0.45, -0.62, 0.07);
   }
   return h;
@@ -2295,7 +2356,7 @@ function init3D() {
       pm.dispose();
     } catch (e) { console.warn("env map skipped", e); }
 
-    scene.add(new T.HemisphereLight(0xb8b0e0, 0x1a1428, 0.25));
+    const hemi = new T.HemisphereLight(0xb8b0e0, 0x1a1428, 0.25); scene.add(hemi);
     const key = new T.DirectionalLight(0xfff0d8, 1.25); key.position.set(-8, 16, 14); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -22, right: 22, top: 14, bottom: -6, near: 1, far: 60 }); key.shadow.bias = -0.0006;
     scene.add(key);
@@ -2303,6 +2364,7 @@ function init3D() {
     const rim2 = new T.DirectionalLight(0x6f8cff, 0.7); rim2.position.set(-12, 6, -10); scene.add(rim2);
     const fill = new T.PointLight(0x7a6ac8, 0.6, 45); fill.position.set(0, 7, 12); scene.add(fill);
     const fxLight = new T.PointLight(0xffd8a0, 0, 16, 2); fxLight.position.set(0, 3, 2); scene.add(fxLight);
+    R3.lights = { hemi, key, rim, rim2, fill };
 
     // Marble checker floor
     const floorTex = canvasTex(512, 512, (g) => {
@@ -2317,13 +2379,14 @@ function init3D() {
     });
     floorTex.repeat.set(11, 4);
     const floor = new T.Mesh(new T.PlaneGeometry(88, 32), new T.MeshStandardMaterial({ map: floorTex, roughness: 0.3, metalness: 0.1, envMapIntensity: 0.35 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(1, 0, -4); floor.receiveShadow = true; scene.add(floor);
+    floor.rotation.x = -Math.PI / 2; floor.position.set(1, 0, -4); floor.receiveShadow = true; scene.add(floor); R3.floor = floor;
     const edge = new T.Mesh(new T.BoxGeometry(88, 0.3, 0.4), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 }));
     edge.position.set(0, 0.15, -20); scene.add(edge);
 
+    const hall0 = scene.children.length;
     // Hall: back wall, glowing windows with light shafts, banners, giant pieces
     const wall = new T.Mesh(new T.PlaneGeometry(140, 50), new T.MeshStandardMaterial({ color: 0x1b1534, roughness: 0.95, map: bricks("#221b3e", "#120d24") }));
-    wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall);
+    wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall); R3.wall = wall; R3.banMats = null;
     const winMat = new T.MeshStandardMaterial({ color: 0x000000, emissive: 0x5a4cc0, emissiveIntensity: 0.55 }), barMat = new T.MeshBasicMaterial({ color: 0x120d24 });
     const shaftMat = new T.MeshBasicMaterial({ color: 0x7a6ae0, transparent: true, opacity: 0.022, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide });
     const banMat = new T.MeshStandardMaterial({ color: 0x7a1424, roughness: 0.8, side: T.DoubleSide }), banMat2 = new T.MeshStandardMaterial({ color: 0x2a1450, roughness: 0.8, side: T.DoubleSide });
@@ -2351,6 +2414,7 @@ function init3D() {
       if (k === "R") for (let a = 0; a < 4; a++) { const c = new T.Mesh(new T.BoxGeometry(0.6, 0.7, 0.6), bgMat); c.scale.setScalar(0.86); c.position.set(x + Math.cos(a * Math.PI / 2) * 1.6, 9.95, -18 + Math.sin(a * Math.PI / 2) * 1.6); scene.add(c); }
       if (k === "K") { const c1 = new T.Mesh(new T.BoxGeometry(0.35, 1.6, 0.35), bgMat); c1.scale.setScalar(0.86); c1.position.set(x, 12.4, -18); scene.add(c1); const c2 = new T.Mesh(new T.BoxGeometry(1.1, 0.35, 0.35), bgMat); c2.scale.setScalar(0.86); c2.position.set(x, 12.6, -18); scene.add(c2); }
     });
+    R3.hallObjs = scene.children.slice(hall0); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
     // Braziers at the arena edges
     R3.braziers = [];
     for (const x of [wx(AR.L) - 0.6, wx(AR.R) + 0.6]) {
@@ -2927,12 +2991,14 @@ function stageExtras() {
   const T = THREE, scene = R3.scene;
   const colMat = new T.MeshStandardMaterial({ color: 0x2a2244, roughness: 0.35, metalness: 0.3, map: marble("#3a3058", "#8a7ab0", 51) });
   const gold = new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 });
+  const col0 = scene.children.length;
   for (let i = -3; i <= 3; i++) {
     if (i === 0) continue;
     const x = i * 11 + (i > 0 ? -3 : 3);
     const col = new T.Mesh(lathe([[1.5, 0], [1.5, 0.5], [1.15, 0.9], [1.0, 1.4], [0.92, 15], [1.2, 15.5], [1.5, 16], [1.5, 17]], 18), colMat); col.position.set(x, 0, -10.5); col.castShadow = true; scene.add(col);
     for (const y of [1.1, 15.2]) { const r = new T.Mesh(new T.TorusGeometry(1.08, 0.1, 8, 24), gold); r.rotation.x = Math.PI / 2; r.position.set(x, y, -10.5); scene.add(r); }
   }
+  R3.colObjs = scene.children.slice(col0);
   const inlay = new T.Mesh(new T.RingGeometry(13.2, 13.5, 96), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.3, transparent: true, opacity: 0.85 }));
   inlay.rotation.x = -Math.PI / 2; inlay.position.set(0, 0.012, 0); scene.add(inlay);
   const inlay2 = new T.Mesh(new T.RingGeometry(6.0, 6.12, 72), inlay.material); inlay2.rotation.x = -Math.PI / 2; inlay2.position.set(0, 0.012, 0); scene.add(inlay2);
@@ -2943,15 +3009,10 @@ function stageExtras() {
   // dark veil used when the camera isolates a fighter
   R3.winMats = []; scene.traverse(o => { if (o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex() === 0x5a4cc0 && !R3.winMats.includes(o.material)) R3.winMats.push(o.material); });
 }
-function setStage(light) { // a duel on a light square is fought in the gold-lit hall, on a dark square in the violet one
-  if (!R3.ok) return;
-  for (const m of R3.winMats) { m.emissive.setHex(light ? 0xc89a46 : 0x5a4cc0); m.emissiveIntensity = light ? 0.5 : 0.55; }
-  R3.scene.background.setHex(light ? 0x120c14 : 0x0a0716); R3.scene.fog.color.setHex(light ? 0x120c14 : 0x0a0716);
-}
 function setup3D(F) {
   teardown3D();
   if (!R3.blobs) stageExtras();
-  setStage(F.lightSq);
+  applyStage(F.stage || 0, F.lightSq);
   R3.models = [buildModel(F.f.w), buildModel(F.f.b)];
   for (const m of R3.models) m.introAt = m.f.isAtt ? F.intro.tA : F.intro.tD;
   R3.cam = { x: 0, y: 4.5, z: 24, lx: 0, ly: 3.5 }; R3.shot = null; R3.shake = 0; R3.punch = 0;
@@ -3241,12 +3302,123 @@ function draw3D(F) {
 }
 
 /* =====================================================================
+   Arenas. The Grand Hall is built in init3D; the Moonlit Courtyard and the
+   Throne Vault are extra set dressing that is swapped in with their own
+   floor, light rig and sky. The stage follows the square being fought over.
+   ===================================================================== */
+const STAGE_NAMES = ["Grand Hall", "Moonlit Courtyard", "Throne Vault"];
+// home ranks are fought in the throne vault, the wings in the courtyard, the centre in the hall
+function stageFor(r, c) { return r <= 1 || r >= 6 ? 2 : (c <= 1 || c >= 6 ? 1 : 0); }
+function checkerTex(light, dark, veinL, veinD, seed) {
+  const t = canvasTex(512, 512, (g) => {
+    const r = rng(seed);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      const li = (i + j) % 2 === 0;
+      g.fillStyle = li ? light : dark; g.fillRect(i * 128, j * 128, 128, 128);
+      g.strokeStyle = li ? veinL : veinD;
+      for (let v = 0; v < 3; v++) { let x = i * 128 + r() * 128, y = j * 128 + r() * 128, a = r() * 6.28; g.lineWidth = 0.5 + r(); g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 18; k++) { a += (r() - 0.5) * 0.8; x += Math.cos(a) * 7; y += Math.sin(a) * 7; g.lineTo(x, y); } g.stroke(); }
+      g.fillStyle = "rgba(0,0,0,.4)"; g.fillRect(i * 128, j * 128, 128, 2); g.fillRect(i * 128, j * 128, 2, 128);
+    }
+  });
+  t.repeat.set(11, 4);
+  return t;
+}
+function buildStages() {
+  const T = THREE, scene = R3.scene;
+  const add = (g, geo, mat, x, y, z) => { const m = new T.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  R3.floorTex = [R3.floor.material.map, checkerTex("#737d8c", "#27303f", "rgba(60,70,90,.5)", "rgba(150,170,210,.3)", 9), checkerTex("#a8875a", "#3a1218", "rgba(110,80,40,.5)", "rgba(220,120,90,.3)", 13)];
+
+  // --- Moonlit Courtyard: open sky, a moon, battlements and two towers ---
+  const court = new T.Group();
+  const sky = canvasTex(1024, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "#050816"); gr.addColorStop(0.55, "#101c40"); gr.addColorStop(0.85, "#27406a"); gr.addColorStop(1, "#3a5a78");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    const r = rng(77);
+    for (let i = 0; i < 260; i++) { const y = r() * h * 0.8, a = 0.3 + r() * 0.7; g.fillStyle = `rgba(230,236,255,${a})`; const s = r() < 0.08 ? 2.2 : 1.1; g.fillRect(r() * w, y, s, s); }
+    const mx = w * 0.6, my = h * 0.5, halo = g.createRadialGradient(mx, my, 20, mx, my, 190); halo.addColorStop(0, "rgba(200,220,255,.5)"); halo.addColorStop(1, "rgba(200,220,255,0)");
+    g.fillStyle = halo; g.fillRect(mx - 200, my - 200, 400, 400);
+    g.fillStyle = "#eef3ff"; g.beginPath(); g.arc(mx, my, 44, 0, 6.3); g.fill();
+    g.fillStyle = "rgba(170,185,215,.55)"; for (const [dx, dy, rr] of [[-12, -8, 9], [14, 6, 12], [-4, 18, 6], [18, -18, 5]]) { g.beginPath(); g.arc(mx + dx, my + dy, rr, 0, 6.3); g.fill(); }
+    g.fillStyle = "rgba(20,30,60,.55)"; for (let i = 0; i < 9; i++) { const x = r() * w, y = h * (0.56 + r() * 0.2), ww = 120 + r() * 220; g.beginPath(); g.ellipse(x, y, ww, 9 + r() * 10, 0, 0, 6.3); g.fill(); }
+  });
+  add(court, new T.PlaneGeometry(190, 44), new T.MeshBasicMaterial({ map: sky, fog: false }), 0, 14, -44);
+  const stone = new T.MeshStandardMaterial({ color: 0x4a5670, roughness: 0.95, map: bricks("#55607a", "#2a3246") }); stone.map.repeat.set(16, 1);
+  const stoneD = new T.MeshStandardMaterial({ color: 0x2c3448, roughness: 0.95 });
+  add(court, new T.BoxGeometry(150, 4.6, 2), stone, 0, 2.3, -21);
+  for (let i = -18; i <= 18; i++) add(court, new T.BoxGeometry(2.2, 1.2, 2), stoneD, i * 4.1, 5.2, -21);
+  for (const x of [-27, 27]) {
+    add(court, new T.CylinderGeometry(4, 4.6, 12, 20), stoneD, x, 6, -24);
+    add(court, new T.CylinderGeometry(4.8, 4, 1.2, 20), stoneD, x, 12.4, -24);
+    for (let a = 0; a < 10; a++) add(court, new T.BoxGeometry(1.2, 1.3, 1.2), stoneD, x + Math.cos(a / 10 * 6.283) * 4.2, 13.5, -24 + Math.sin(a / 10 * 6.283) * 4.2);
+    add(court, new T.PlaneGeometry(1.1, 2.6), new T.MeshBasicMaterial({ color: 0xffc46a }), x, 8.6, -19.7);
+    const flag = add(court, new T.PlaneGeometry(3.4, 2), new T.MeshStandardMaterial({ color: x < 0 ? 0x7a1424 : 0x2a3c8a, roughness: 0.8, side: T.DoubleSide }), x + 1.8, 16.6, -24);
+    add(court, new T.CylinderGeometry(0.1, 0.1, 5, 6), stoneD, x, 15.4, -24); flag.userData.flag = 1;
+  }
+  add(court, new T.BoxGeometry(9, 7.6, 1.2), stoneD, 0, 3.8, -20.2);                                   // gatehouse with a lit arch
+  add(court, new T.PlaneGeometry(5.5, 6.5), new T.MeshBasicMaterial({ color: 0x06080f }), 0, 2.2, -19.55).scale.set(0.75, 0.68, 1);
+  add(court, new T.CircleGeometry(2.06, 20, 0, Math.PI), new T.MeshBasicMaterial({ color: 0x06080f }), 0, 4.4, -19.55);
+  const hedge = new T.MeshStandardMaterial({ color: 0x0f2219, roughness: 1 });
+  for (const x of [-40, -34, -14, 14, 34, 40]) { add(court, new T.ConeGeometry(1.3, 6.4, 10), hedge, x, 3.2, -18.6); }
+  court.visible = false; scene.add(court);
+
+  // --- Throne Vault: crimson and gold, a throne on a dais, hanging chandeliers ---
+  const vault = new T.Group();
+  const gold = new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 });
+  const velvet = new T.MeshStandardMaterial({ color: 0x3c0810, roughness: 1 });
+  const dark = new T.MeshStandardMaterial({ color: 0x1c0d12, roughness: 0.5, metalness: 0.3 });
+  for (let i = 0; i < 3; i++) add(vault, new T.BoxGeometry(22 - i * 4, 0.7, 7 - i * 1.6), dark, 0, 0.35 + i * 0.7, -16.5 - i * 0.6).receiveShadow = true;
+  add(vault, new T.BoxGeometry(5.2, 13, 1), dark, 0, 8.6, -18.6);                                    // throne back
+  add(vault, new T.BoxGeometry(4.2, 10.5, 0.4), velvet, 0, 8.2, -18.0);
+  add(vault, new T.BoxGeometry(5.2, 1.4, 4), dark, 0, 3.4, -16.9);                                   // seat
+  add(vault, new T.BoxGeometry(4.4, 0.5, 3.4), velvet, 0, 4.3, -16.8);
+  for (const sx of [-1, 1]) { add(vault, new T.BoxGeometry(0.9, 3.4, 4), dark, sx * 2.6, 4.9, -16.9); add(vault, new T.SphereGeometry(0.6, 14, 10), gold, sx * 2.6, 6.9, -15.1); add(vault, new T.ConeGeometry(0.5, 2.6, 8), gold, sx * 2.3, 16.3, -18.6); }
+  add(vault, new T.ConeGeometry(0.7, 3.6, 8), gold, 0, 16.9, -18.6);
+  add(vault, new T.TorusGeometry(1.3, 0.16, 8, 28), gold, 0, 12.4, -17.75);                          // crown crest
+  const carpet = add(vault, new T.PlaneGeometry(9, 26), new T.MeshStandardMaterial({ color: 0x3a0a12, roughness: 1 }), 0, 0.03, -5); carpet.rotation.x = -Math.PI / 2; carpet.receiveShadow = true;
+  for (const sx of [-1, 1]) { const tr = add(vault, new T.PlaneGeometry(0.5, 26), gold, sx * 4.2, 0.035, -5); tr.rotation.x = -Math.PI / 2; }
+  R3.chand = [];
+  for (const x of [-20, 20]) {
+    const c = new T.Group(); c.position.set(x, 15.5, -12);
+    add(c, new T.CylinderGeometry(0.06, 0.06, 12, 6), dark, 0, 6, 0);
+    const ring = add(c, new T.TorusGeometry(2.6, 0.14, 8, 32), gold, 0, 0, 0); ring.rotation.x = Math.PI / 2;
+    const ring2 = add(c, new T.TorusGeometry(1.5, 0.1, 8, 24), gold, 0, 1.1, 0); ring2.rotation.x = Math.PI / 2;
+    const flame = new T.MeshBasicMaterial({ color: 0xffc070 });
+    for (let a = 0; a < 8; a++) add(c, new T.SphereGeometry(0.2, 8, 6), flame, Math.cos(a / 8 * 6.283) * 2.6, 0.35, Math.sin(a / 8 * 6.283) * 2.6);
+    const L = new T.PointLight(0xffa050, 0.9, 30, 2); L.position.set(0, -0.5, 0); c.add(L);
+    vault.add(c); R3.chand.push(c);
+  }
+  vault.visible = false; scene.add(vault);
+  R3.sets = [null, court, vault];
+}
+function applyStage(i, light) {
+  if (!R3.ok) return;
+  if (!R3.sets) buildStages();
+  const hall = i === 0, court = i === 1, vault = i === 2, L = R3.lights;
+  for (const o of R3.hallObjs) o.visible = hall || (vault && o.material !== R3.bgMat);
+  for (const o of R3.colObjs || []) o.visible = !court;
+  R3.sets[1].visible = court; R3.sets[2].visible = vault;
+  R3.floor.material.map = R3.floorTex[i]; R3.floor.material.needsUpdate = true;
+  const win = hall ? (light ? 0xc89a46 : 0x5a4cc0) : 0xd8742a;
+  for (const m of R3.winMats) { m.emissive.setHex(win); m.emissiveIntensity = vault ? 0.75 : light ? 0.5 : 0.55; }
+  R3.wall.material.color.setHex(vault ? 0x3a1420 : 0x1b1534);
+  R3.banMats[0].color.setHex(0x7a1424); R3.banMats[1].color.setHex(vault ? 0x8a6a1c : 0x2a1450);
+  const bg = court ? 0x0c1630 : vault ? 0x140608 : light ? 0x120c14 : 0x0a0716;
+  R3.scene.background.setHex(bg); R3.scene.fog.color.setHex(bg); R3.scene.fog.near = court ? 44 : 34; R3.scene.fog.far = court ? 110 : 72;
+  L.hemi.color.setHex(court ? 0x9fb4e8 : vault ? 0xe0b0a0 : 0xb8b0e0); L.hemi.intensity = court ? 0.42 : 0.25;
+  L.key.color.setHex(court ? 0xcfdcff : vault ? 0xffdcb0 : 0xfff0d8); L.key.intensity = court ? 1.05 : 1.25;
+  L.rim.color.setHex(court ? 0x8fb0ff : vault ? 0xff8a3a : 0xe8b04a); L.rim2.color.setHex(court ? 0x4fd0c0 : vault ? 0xc03a4a : 0x6f8cff);
+  L.fill.color.setHex(court ? 0x4a6ac8 : vault ? 0xa84a3a : 0x7a6ac8);
+}
+
+/* =====================================================================
    Duel runtime: input, sound, HUD, the round flow (entrances -> fight ->
    KO -> victory pose) and the transitions to and from the chess board.
    ===================================================================== */
 const layer = $("fightLayer"), hud = $("hud"), screenEl = $("screen");
 const cv = $("arena"), ctx = cv.getContext("2d");
 let fight = null;
+// who sits on the other side: the chess CPU, an online rival, or a practice partner
+const whoIs = c => c === CONFIG.human ? "YOU" : NET.on ? "RIVAL" : fight && fight.practice && !fight.f[c].ai ? "DUMMY" : "CPU";
 
 /* ---------- input: keyboard + touch, merged ---------- */
 const keys = new Set(), pressed = new Set();
@@ -3436,7 +3608,7 @@ function hudSetup(F) {
   for (const c of ["w", "b"]) {
     const f = F.f[c], s = H.side[c];
     s.gly.textContent = GLYPH[f.t] + VS; s.nm.textContent = `${COLORNAME[c]} ${f.s.name}`;
-    s.role.textContent = (f.isAtt ? "ATTACKER" : "DEFENDER") + (f.ai ? " · CPU" : " · YOU"); s.role.className = "role " + (f.isAtt ? "att" : "def");
+    s.role.textContent = (F.practice ? "" : (f.isAtt ? "ATTACKER" : "DEFENDER") + " · ") + whoIs(c); s.role.className = "role " + (f.isAtt ? "att" : "def");
     s.lag.style.transition = "none"; s.lag.style.width = s.fill.style.width = (f.hp / f.max * 100) + "%"; void s.lag.offsetWidth; s.lag.style.transition = "";
     s.combo.className = "combo " + c; s.call.className = "callo " + c; s.tag.textContent = "";
     f.hudHp = -1;
@@ -3503,21 +3675,25 @@ function hudEvent(F, e) {
 /* ---------- round flow ---------- */
 function startFight(att, def, onDone, opts) {
   keys.clear(); pressed.clear(); touch.pressed.clear(); touch.held = { l: 0, r: 0, u: 0, d: 0 };
-  const lv = c => (c === CONFIG.human ? null : CONFIG.level);
-  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, CONFIG.fightSeconds);
+  const lv = c => (c === CONFIG.human || NET.on ? null : opts && opts.ai !== undefined ? opts.ai : CONFIG.level);
+  const F = makeDuel(att, def, { w: lv("w"), b: lv("b") }, opts && opts.seconds || CONFIG.fightSeconds);
+  F.practice = !!(opts && opts.practice); F.stage = opts && opts.stage || 0; F.me = CONFIG.human;
+  if (NET.on) netDuelBegin(F);
   const tA = 0.1, tD = tA + INTRO_DUR[att.t] * 0.8, tWide = tD + INTRO_DUR[def.t] * 0.86;
   Object.assign(F, { phase: "intro", phaseT: 0, outroT: 0, onDone, last: performance.now(), slow: 0, hold: !!(opts && opts.hold), lightSq: !!(opts && opts.lightSq),
     intro: { tA, tD, tWide, tReady: tWide + 0.05, tFight: tWide + 0.55, end: tWide + 0.85, said: {} }, outro: null });
   fight = F; H.clock = null;
   for (const c of ["w", "b"]) {
     const f = F.f[c], C = c.toUpperCase();
-    $("kc" + C).textContent = `${COLORNAME[c]} ${f.s.name}${f.ai ? " (CPU)" : " (you)"}`;
+    $("kc" + C).textContent = `${COLORNAME[c]} ${f.s.name}${" (" + whoIs(c).toLowerCase() + ")"}`;
     $("kc" + C + "k").textContent = `${f.s.style}. Special: ${f.s.spName.toLowerCase()}.`;
   }
   document.body.classList.add("dueling");
   layer.hidden = false;
   if (init3D()) { layer.classList.add("three"); resize3D(); setup3D(F); } else layer.classList.remove("three");
   hudSetup(F);
+  $("exitBtn").hidden = !F.practice; $("movesBtn").hidden = !F.practice; $("pMoves").hidden = true;
+  if (F.practice) $("pMovesList").innerHTML = moveList(F.f[F.me].t);
   requestAnimationFrame(loop);
   return F;
 }
@@ -3530,7 +3706,7 @@ function loop(now) {
 }
 function showPlate(f) {
   const p = $("plate");
-  p.innerHTML = `<small>${f.isAtt ? "ATTACKER" : "DEFENDER"} · ${f.ai ? "CPU" : "YOU"}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP</span>`;
+  p.innerHTML = `<small>${fight && fight.practice ? "PRACTICE" : f.isAtt ? "ATTACKER" : "DEFENDER"} · ${whoIs(f.color)}</small><b>${COLORNAME[f.color]} ${f.s.name}</b><span>${f.s.style} · ${Math.ceil(f.hp)} HP</span>`;
   p.className = `plate ${f.color} ${f.face > 0 ? "lft" : "rgt"}`; restart(p, "go");
 }
 // one line reminding you what your piece does, shown under FIGHT!
@@ -3540,7 +3716,7 @@ function stepDuel(F, rdt) {
   if (F.phase === "intro") {
     const I = F.intro, was = F.phaseT;
     F.phaseT += rdt;
-    if (F.phaseT > 0.35 && F.phaseT < I.tWide && (anyPress() || F.skip)) F.phaseT = I.tWide;
+    if (F.phaseT > 0.35 && F.phaseT < I.tWide && (anyPress() || F.skip)) { if (F.net && F.skip !== 2) netCtl({ t: "skip" }); F.phaseT = I.tWide; } // online, skipping the entrances skips them for both
     const at = (t, key, fn) => { if (F.phaseT >= t && !I.said[key]) { I.said[key] = 1; fn(); } };
     if (F.phaseT < I.tWide) { at(I.tA, "pa", () => showPlate(F.att)); at(I.tD, "pd", () => showPlate(F.def)); }
     at(I.tWide, "w", () => { $("plate").className = "plate"; hud.classList.remove("intro"); $("skipBtn").hidden = true; });
@@ -3564,21 +3740,34 @@ function stepDuel(F, rdt) {
     if (F.outroT >= O.end || (F.outroT > O.tWin + 0.5 && anyPress())) endFight(F);
     return;
   }
-  const inp = readInput(), n = Math.max(1, Math.ceil(rdt * 60 - 0.01));
-  for (let i = 0; i < n && !F.result; i++) {
-    const first = i === 0;
-    simStep(F, rdt / n, () => first ? inp : { l: inp.l, r: inp.r, u: inp.u, d: inp.d, p: 0, k: 0, s: 0, x: 0, t: 0, uP: 0, lP: 0, rP: 0 });
+  if (F.net) netDuelStep(F, rdt);
+  else {
+    const inp = readInput(), n = Math.max(1, Math.ceil(rdt * 60 - 0.01)), mine = F.f[F.me], none = blankInput();
+    for (let i = 0; i < n && !F.result; i++) {
+      const first = i === 0;
+      simStep(F, rdt / n, f => f !== mine ? none : first ? inp : { l: inp.l, r: inp.r, u: inp.u, d: inp.d, p: 0, k: 0, s: 0, x: 0, t: 0, uP: 0, lP: 0, rP: 0 });
+    }
+    if (F.practice) practiceTick(F);
   }
   if (F.result) { F.phase = "outro"; F.outroT = 0; F.slow = F.result.timeout ? 0.5 : 1.3; F.outro = { tWin: F.result.timeout ? 1.0 : 1.7, end: (F.result.timeout ? 1.0 : 1.7) + 2.3, said: false }; }
+}
+// Practice: a partner that stands still gets its health back once you stop hitting it, and your special meter stays topped up
+function practiceTick(F) {
+  const me = F.f[F.me], o = F.f[F.me === "w" ? "b" : "w"];
+  for (const e of F.events) if (e.type === "hit" && e.f === o) F.pHit = F.t;
+  if (!o.ai && !F.result) { if (F.t - (F.pHit || 0) > 1.6 && o.hp < o.max) o.hp = Math.min(o.max, o.hp + o.max * 0.02); if (o.hp < 2) o.hp = 2; }
+  if (!o.ai && me.meter < 50) me.meter = Math.min(100, me.meter + 0.4);
 }
 function endFight(F) {
   if (F.ending) return; F.ending = true;
   wipe(() => {
     const r = F.result; musicStop(0.1); teardown3D(); fight = null; layer.hidden = true; document.body.classList.remove("dueling"); keys.clear();
-    F.onDone(r);
+    if (F.net) netDuelDone(F, r, F.onDone); else F.onDone(r);
   });
 }
 $("skipBtn").addEventListener("click", () => { if (fight) fight.skip = true; });
+$("exitBtn").addEventListener("click", () => { const F = fight; if (F && F.practice && !F.ending) { if (!F.result) F.result = { attackerWon: true, attackerHp: F.att.hp, defenderHp: F.def.hp, practice: true }; endFight(F); } });
+$("movesBtn").addEventListener("click", () => { $("pMoves").hidden = !$("pMoves").hidden; });
 for (const b of document.querySelectorAll(".sndToggle")) b.addEventListener("click", () => { auInit(); setMuted(!AU.muted); });
 setMuted(AU.muted);
 
@@ -3591,7 +3780,7 @@ function vsCard(att, def, behind, done) {
   const c = $("vsCard"), fill = (side, p, isAtt) => {
     const el = c.querySelector(".vsHalf." + side), s = STATS[p.t];
     el.querySelector(".vsGlyph").textContent = GLYPH[p.t] + VS;
-    el.querySelector("small").textContent = (isAtt ? "ATTACKER" : "DEFENDER") + (p.c === CONFIG.human ? " · YOU" : " · CPU");
+    el.querySelector("small").textContent = (isAtt ? "ATTACKER" : "DEFENDER") + (p.c === CONFIG.human ? " · YOU" : NET.on ? " · RIVAL" : " · CPU");
     el.querySelector("b").textContent = `${COLORNAME[p.c]} ${s.name}`;
     el.querySelector("i").style.width = (p.hp / s.hp * 100) + "%";
     el.querySelector("span").textContent = `${p.hp} / ${s.hp} HP · ${s.style}`;
@@ -3627,6 +3816,285 @@ function drawDuel(F) {
     if (f.state === "block") { ctx.strokeStyle = "#9fd3ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(f.x + f.face * 10, GY - 30, 18, -1.2 * f.face, 1.2 * f.face, f.face < 0); ctx.stroke(); }
   }
   for (const p of F.proj) { ctx.fillStyle = p.owner.color === "w" ? "#bfe8ff" : "#ffc24a"; ctx.beginPath(); ctx.arc(p.x, GY - p.h, p.kind === "wave" ? 7 : 4, 0, 7); ctx.fill(); }
+}
+
+/* =====================================================================
+   Practice mode and online play.
+
+   Online: two players share a room code. A free Supabase Realtime channel
+   carries the handshake; after that the game talks over a direct WebRTC
+   data channel when one can be opened, and keeps using the Supabase channel
+   when it cannot. Chess moves are sent as moves. Duels run in lockstep:
+   both devices step the same fixed 60 Hz simulation from the same inputs,
+   a few frames behind the buttons, so both see the same fight. The host
+   posts a checksum twice a second and re-sends the whole duel state if the
+   two ever disagree, and the host's result is the one that counts.
+   ===================================================================== */
+
+/* ---------- practice ---------- */
+$("prGo").addEventListener("click", () => {
+  if (fight || clashing || NET.on) return;
+  const me = CONFIG.human, other = opp(me), ai = $("prAi").value;
+  const mk = (t, c) => ({ t, c, hp: STATS[t].hp, moved: true, id: -1 });
+  auInit();
+  startFight(mk($("prMe").value, me), mk($("prOpp").value, other), () => { render(); }, { practice: true, seconds: 99, ai: ai === "dummy" ? null : +ai, stage: +$("prStage").value });
+});
+
+/* ---------- online ---------- */
+const NET = { on: false, host: false, code: "", id: Math.random().toString(36).slice(2, 10), peer: null, peerName: "Rival", peerRating: 1200, sb: null, ch: null, pc: null, dc: null, via: "",
+  D: 3, out: new Map(), seen: new Set(), seq: 1, duelNo: 0, duel: null, res: {}, queue: [], lastRx: 0, timer: null, again: { me: false, them: false }, applying: false, helloT: null, ice: [] };
+const NET_DT = 1 / 60, NET_LOCAL = /[?&]net=local/.test(location.search), NET_NORTC = /[?&]rtc=0/.test(location.search);
+const netName = () => { const p = me(); return p ? p.name : "Guest"; };
+function netStatus(text, code) {
+  $("netIdle").hidden = !!text; $("netBusy").hidden = !text; $("netStatus").textContent = text || "";
+  $("netCode").hidden = !code; if (code) $("netCode").textContent = code;
+  for (const id of ["side", "level", "newGame", "prGo"]) $(id).disabled = NET.on;
+  $("matchLabel").textContent = NET.on ? "Online match" : "Match vs CPU";
+}
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("could not load " + src)); document.head.appendChild(s); }); }
+async function netChannel(code, onmsg) {
+  if (NET_LOCAL) { const bc = new BroadcastChannel("h2h-room-" + code); bc.onmessage = e => onmsg(e.data); return { send: o => bc.postMessage(o), close: () => bc.close() }; }
+  const cfg = window.H2H_SUPABASE;
+  if (!cfg || !cfg.url || !cfg.anonKey) throw new Error("Online play only works on the live site.");
+  if (!NET.sb) {
+    if (!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/dist/umd/supabase.min.js");
+    NET.sb = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "h2h-realtime" }, realtime: { params: { eventsPerSecond: 40 } } });
+  }
+  const ch = NET.sb.channel("h2h-room-" + code, { config: { broadcast: { self: false, ack: false } } });
+  ch.on("broadcast", { event: "m" }, m => onmsg(m.payload));
+  await new Promise((res, rej) => {
+    const to = setTimeout(() => rej(new Error("The game server did not answer.")), 12000);
+    ch.subscribe(st => { if (st === "SUBSCRIBED") { clearTimeout(to); res(); } else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") { clearTimeout(to); rej(new Error("Could not reach the game server.")); } });
+  });
+  return { send: o => { try { ch.send({ type: "broadcast", event: "m", payload: o }); } catch (e) {} }, close: () => { try { NET.sb.removeChannel(ch); } catch (e) {} } };
+}
+// everything goes over the direct link when it is open, otherwise through the room channel
+function netRaw(o) { o.from = NET.id; if (NET.dc && NET.dc.readyState === "open") { try { NET.dc.send(JSON.stringify(o)); return; } catch (e) {} } if (NET.ch) NET.ch.send(o); }
+// control messages are numbered, acknowledged and re-sent until they arrive
+function netCtl(o) { o.id = NET.seq++; NET.out.set(o.id, o); netRaw(o); }
+function netTick() {
+  if (!NET.ch) return;
+  for (const o of NET.out.values()) netRaw(o);
+  if (NET.on) {
+    netRaw({ t: "ping" });
+    if (performance.now() - NET.lastRx > 15000) netOver("Connection lost.", null);
+  }
+}
+function netOnMsg(o) {
+  if (!o || o.from === NET.id) return;
+  if (NET.peer && o.from !== NET.peer) { if (o.t === "hello" && NET.host) NET.ch.send({ t: "full", to: o.from, from: NET.id }); return; }
+  NET.lastRx = performance.now();
+  if (o.t === "ack") { NET.out.delete(o.id); return; }
+  if (o.t === "i") { netDuelInput(o); return; }
+  if (o.t === "h") { netDuelHash(o); return; }
+  if (o.t === "ping") return;
+  if (o.t === "sig") { rtcSignal(o); return; }
+  if (o.t === "full") { if (o.to === NET.id && !NET.on) netFail("That room already has two players."); return; }
+  if (o.t === "hello") { // a guest knocks: the host answers, picks the colours and opens the direct link
+    if (!NET.host) return;
+    if (!NET.peer) { NET.peer = o.from; NET.peerName = String(o.name || "Rival").slice(0, 20); NET.peerRating = +o.rating || 1200; NET.hostColor = Math.random() < 0.5 ? "w" : "b"; rtcStart(true); }
+    NET.ch.send({ t: "welcome", from: NET.id, to: o.from, name: netName(), rating: (me() || {}).rating || 1200, hostColor: NET.hostColor });
+    if (!NET.on) netBegin(NET.hostColor);
+    return;
+  }
+  if (o.t === "welcome") {
+    if (NET.host || o.to !== NET.id || NET.on) return;
+    clearInterval(NET.helloT); NET.peer = o.from; NET.peerName = String(o.name || "Rival").slice(0, 20); NET.peerRating = +o.rating || 1200;
+    rtcStart(false); netBegin(o.hostColor === "w" ? "b" : "w");
+    return;
+  }
+  if (o.id != null) { netRaw({ t: "ack", id: o.id }); const k = o.from + ":" + o.id; if (NET.seen.has(k)) return; NET.seen.add(k); }
+  if (o.t === "mv") { NET.queue.push(o); netPump(); }
+  else if (o.t === "res") NET.res[o.d] = o.r;
+  else if (o.t === "skip") { if (fight && fight.phase === "intro") fight.skip = 2; }
+  else if (o.t === "rq") { const N = NET.duel; if (NET.host && N && N.no === o.d && fight && !fight.result) netCtl({ t: "st", d: N.no, f: N.frame, s: dumpDuel(fight) }); }
+  else if (o.t === "st") netDuelLoad(o);
+  else if (o.t === "sq") { if (NET.host) netCtl({ t: "S", s: JSON.stringify(S), n: nextId }); }
+  else if (o.t === "S") { if (!NET.host && !fight && !clashing) { S = JSON.parse(o.s); nextId = o.n; selected = null; targets = []; NET.queue = []; render(); } }
+  else if (o.t === "bye") netOver(`${NET.peerName} left the match.`, CONFIG.human);
+  else if (o.t === "again") { NET.again.them = true; if (!NET.again.me) { netStatus(`${NET.peerName} wants a rematch. Press Play again to accept.`); log(`${NET.peerName} wants a rematch.`); } netAgain(); }
+  else if (o.t === "new") { if (!NET.host) netNewGame(o.hostColor === "w" ? "b" : "w"); }
+}
+function netFail(msg) { netClose(); netStatus(""); dialog({ title: "Online play", text: msg, ok: "OK" }); }
+function netClose() {
+  clearInterval(NET.timer); clearInterval(NET.helloT);
+  try { if (NET.dc) NET.dc.close(); } catch (e) {} try { if (NET.pc) NET.pc.close(); } catch (e) {}
+  if (NET.ch) NET.ch.close();
+  Object.assign(NET, { on: false, host: false, peer: null, ch: null, pc: null, dc: null, via: "", duel: null, queue: [], res: {}, ice: [], again: { me: false, them: false } });
+  NET.out.clear(); NET.seen.clear();
+}
+async function netOpen(code, host) {
+  if (fight || clashing) return;
+  netClose(); NET.host = host; NET.code = code;
+  netStatus("Connecting…", host ? code : null);
+  try { NET.ch = await netChannel(code, netOnMsg); } catch (e) { netFail(e.message || "Could not connect."); return; }
+  NET.lastRx = performance.now(); NET.timer = setInterval(netTick, 1000);
+  if (host) netStatus("Waiting for your friend to join with this code.", code);
+  else {
+    netStatus("Looking for room " + code + "…");
+    const hello = () => NET.ch && NET.ch.send({ t: "hello", from: NET.id, name: netName(), rating: (me() || {}).rating || 1200 });
+    hello(); let n = 0; NET.helloT = setInterval(() => { if (NET.on) { clearInterval(NET.helloT); return; } if (++n > 20) { netFail("No room with that code answered. Check the code and that your friend is still waiting."); return; } hello(); }, 1000);
+  }
+}
+$("netCreate").addEventListener("click", () => { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ"; let c = ""; for (let i = 0; i < 4; i++) c += A[(Math.random() * A.length) | 0]; netOpen(c, true); });
+$("netJoin").addEventListener("click", async () => {
+  const v = await dialog({ title: "Join a room", text: "Type the four-letter code your friend sees.", input: { value: "" }, ok: "Join" });
+  if (v) netOpen(v.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4), false);
+});
+$("netLeave").addEventListener("click", () => {
+  if (fight || clashing) return;
+  const was = NET.on; if (was) netCtl({ t: "bye" });
+  setTimeout(() => { netClose(); netStatus(""); if (was) newGame(); }, was ? 250 : 0);
+});
+window.addEventListener("pagehide", () => { if (NET.on) netRaw({ t: "bye", id: NET.seq++ }); });
+
+function netBegin(myColor) {
+  NET.on = true; NET.lastRx = performance.now(); $("gameOver").hidden = true;
+  netNewGame(myColor);
+}
+function netNewGame(myColor) {
+  NET.duelNo = 0; NET.queue = []; NET.res = {}; NET.again = { me: false, them: false }; $("gameOver").hidden = true;
+  CONFIG.human = myColor; $("side").value = myColor;
+  gameGen++; nextId = 1; S = newState(); S.online = NET.peerName; selected = null; targets = [];
+  log(`Online match against ${NET.peerName}. You play ${COLORNAME[myColor]}.`);
+  netShow(); render(); showStats(S.board[myColor === "w" ? 7 : 0][1]);
+}
+function netShow() { if (NET.on) netStatus(`Playing ${NET.peerName}. You are ${COLORNAME[CONFIG.human]}.` + (NET.via === "p2p" ? " Direct link." : NET.via === "relay" ? " Relayed link." : "")); }
+function netOver(reason, winner) {
+  if (!NET.on) return;
+  const finish = () => {
+    if (fight || clashing) { setTimeout(finish, 300); return; }
+    if (!S.over) { S.over = { winner, reason: reason + (winner === CONFIG.human ? " You win." : "") }; log(S.over.reason, "fight"); }
+    netClose(); netStatus(""); render();
+  };
+  if (fight && !fight.result && !fight.ending) { fight.result = { attackerWon: fight.att.color === CONFIG.human, attackerHp: fight.att.hp, defenderHp: fight.def.hp, timeout: true }; endFight(fight); }
+  finish();
+}
+// rematch: both press Play again, the host swaps the colours
+function netAgain() {
+  if (!NET.on || !NET.again.me || !NET.again.them || !NET.host) return;
+  NET.hostColor = NET.hostColor === "w" ? "b" : "w";
+  netCtl({ t: "new", hostColor: NET.hostColor }); netNewGame(NET.hostColor);
+}
+$("goNew").addEventListener("click", e => {
+  if (!NET.on) return;
+  e.stopImmediatePropagation(); $("gameOver").hidden = true;
+  NET.again.me = true; netCtl({ t: "again" }); netStatus(NET.again.them ? "Starting the rematch…" : `Waiting for ${NET.peerName} to accept the rematch.`); netAgain();
+}, true);
+// a local move goes out before it is played; the rival's moves are played here as they arrive
+function netSendMove(m) { if (NET.on && !NET.applying) netCtl({ t: "mv", fr: m.fr, fc: m.fc, tr: m.tr, tc: m.tc, h: boardHash() }); }
+function boardHash() { let h = S.turn; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) { const p = S.board[r][c]; h += p ? p.c + p.t + p.hp : "."; } return h; }
+function netPump() {
+  if (!NET.on || !NET.queue.length) return;
+  if (fight || clashing || S.over) { setTimeout(netPump, 250); return; }
+  if (S.turn === CONFIG.human) return;
+  const o = NET.queue.shift();
+  const m = o.h === boardHash() ? legalFrom(S, o.fr, o.fc).find(x => x.tr === o.tr && x.tc === o.tc) : null;
+  if (!m) { if (NET.host) netCtl({ t: "S", s: JSON.stringify(S), n: nextId }); else netCtl({ t: "sq" }); return; } // boards disagree: the host's board wins
+  selected = [m.fr, m.fc]; targets = [m]; render();
+  const g = gameGen;
+  setTimeout(() => { if (g !== gameGen || !NET.on || fight || clashing) return; NET.applying = true; attemptMove(m); NET.applying = false; }, 300);
+}
+
+/* ---------- direct link (WebRTC) ---------- */
+function rtcSig(d) { if (NET.ch) NET.ch.send({ t: "sig", from: NET.id, d }); }
+async function rtcStart(offerer) {
+  if (NET_NORTC || !window.RTCPeerConnection) { NET.via = "relay"; NET.D = 9; return; }
+  try {
+    const pc = NET.pc = new RTCPeerConnection({ iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] });
+    pc.onicecandidate = e => { if (e.candidate) rtcSig({ ice: e.candidate.toJSON() }); };
+    const setup = dc => {
+      dc.onopen = () => { NET.dc = dc; NET.via = "p2p"; NET.D = 3; netShow(); };
+      dc.onmessage = e => { try { netOnMsg(JSON.parse(e.data)); } catch (_) {} };
+      dc.onclose = () => { if (NET.dc === dc) { NET.dc = null; NET.via = "relay"; NET.D = 9; netShow(); } };
+    };
+    pc.ondatachannel = e => setup(e.channel);
+    if (offerer) { setup(pc.createDataChannel("game", { ordered: true })); await pc.setLocalDescription(await pc.createOffer()); rtcSig({ sdp: pc.localDescription.toJSON() }); }
+    setTimeout(() => { if (NET.pc === pc && !NET.dc) { NET.via = "relay"; NET.D = 9; netShow(); } }, 9000); // no direct route: stay on the relay
+  } catch (e) { NET.via = "relay"; NET.D = 9; }
+}
+async function rtcSignal(o) {
+  const pc = NET.pc, d = o.d; if (!pc || !d) return;
+  try {
+    if (d.sdp) {
+      await pc.setRemoteDescription(d.sdp);
+      if (d.sdp.type === "offer") { await pc.setLocalDescription(await pc.createAnswer()); rtcSig({ sdp: pc.localDescription.toJSON() }); }
+      for (const c of NET.ice.splice(0)) await pc.addIceCandidate(c);
+    } else if (d.ice) { if (pc.remoteDescription) await pc.addIceCandidate(d.ice); else NET.ice.push(d.ice); }
+  } catch (e) { /* the relay keeps the match going */ }
+}
+
+/* ---------- lockstep duel ---------- */
+const NET_KEYS = ["l", "r", "u", "d", "p", "k", "s", "x", "t", "uP", "lP", "rP"];
+const packInp = i => NET_KEYS.reduce((b, k, n) => b | (i[k] ? 1 << n : 0), 0);
+function unpackInp(b) { const o = {}; for (let n = 0; n < NET_KEYS.length; n++) o[NET_KEYS[n]] = (b >> n) & 1; return o; }
+function netDuelBegin(F) {
+  const z = () => [0, 0, 0, 0, 0, 0, 0, 0]; // both sides start with the same eight empty frames, whatever their link
+  F.net = true;
+  NET.duel = { no: ++NET.duelNo, F, frame: 0, mine: z(), theirs: z(), acked: 0, pend: 0, acc: 0, stall: 0, loops: 0, hashes: new Map(), theirHash: new Map(), rqAt: 0 };
+}
+function netDuelSend(N) { netRaw({ t: "i", d: N.no, a: N.theirs.length, f: N.acked, v: N.mine.slice(N.acked) }); }
+function netDuelInput(o) {
+  const N = NET.duel; if (!N || o.d !== N.no) return;
+  for (let j = 0; j < o.v.length; j++) if (o.f + j === N.theirs.length) N.theirs.push(o.v[j]);
+  if (o.a > N.acked) N.acked = Math.min(o.a, N.mine.length);
+}
+const duelHash = F => { const a = F.f.w, b = F.f.b; return [Math.round(a.x * 8), Math.round(a.y), Math.round(a.hp * 4), a.state, Math.round(b.x * 8), Math.round(b.y), Math.round(b.hp * 4), b.state, F.proj.length].join("|"); };
+function netDuelHash(o) {
+  const N = NET.duel; if (!N || o.d !== N.no || NET.host) return;
+  N.theirHash.set(o.f, o.h); netDuelCheck(N, o.f);
+}
+function netDuelCheck(N, f) {
+  const a = N.hashes.get(f), b = N.theirHash.get(f);
+  if (a == null || b == null) return;
+  N.hashes.delete(f); N.theirHash.delete(f);
+  if (a !== b && performance.now() - N.rqAt > 1500) { N.rqAt = performance.now(); netCtl({ t: "rq", d: N.no }); }
+}
+function netDuelStep(F, rdt) {
+  const N = NET.duel, me = F.me; if (!N || N.F !== F) return;
+  N.acc = Math.min(N.acc + rdt, 0.2);
+  // read the buttons for the frames about to be reached, D ahead of the one being simulated; a press waits in N.pend until a frame can carry it
+  const inp = readInput(), held = packInp({ l: inp.l, r: inp.r, u: inp.u, d: inp.d }); let sent = false;
+  N.pend |= packInp(inp) & ~15;
+  const want = N.frame + NET.D + Math.max(1, Math.floor(N.acc / NET_DT));
+  while (N.mine.length < want && N.mine.length < N.theirs.length + 40) { N.mine.push(held | N.pend); N.pend = 0; sent = true; }
+  let ran = 0;
+  while (N.acc >= NET_DT && !F.result && N.frame < N.theirs.length && N.frame < N.mine.length) {
+    const a = unpackInp(N.mine[N.frame]), b = unpackInp(N.theirs[N.frame]);
+    simStep(F, NET_DT, f => (f.color === me ? a : b));
+    N.frame++; N.acc -= NET_DT; ran++;
+    if (N.frame % 30 === 0) { const h = duelHash(F); if (NET.host) netRaw({ t: "h", d: N.no, f: N.frame, h }); else { N.hashes.set(N.frame, h); netDuelCheck(N, N.frame); } }
+  }
+  N.stall = ran || F.result ? 0 : N.stall + rdt;
+  if (!ran) N.acc = Math.min(N.acc, NET_DT * 2);
+  $("netWait").hidden = N.stall < 1;
+  if (N.stall > 14) { netOver("Connection lost.", null); return; }
+  N.loops++;
+  if (NET.via === "p2p" ? sent || N.loops % 6 === 0 : N.loops % 3 === 0) netDuelSend(N); // the relay is rate limited, so it gets batches
+}
+// the host's result decides the duel on both devices
+function netDuelDone(F, r, cb) {
+  const N = NET.duel; $("netWait").hidden = true;
+  if (!NET.on || !N || N.F !== F) { cb(r); return; }
+  const no = N.no; NET.duel = null;
+  if (NET.host) { netCtl({ t: "res", d: no, r: { attackerWon: r.attackerWon, attackerHp: r.attackerHp, defenderHp: r.defenderHp, timeout: !!r.timeout } }); cb(r); return; }
+  let n = 0; const wait = () => { if (NET.res[no] || ++n > 40 || !NET.on) cb(NET.res[no] || r); else setTimeout(wait, 100); };
+  wait();
+}
+function dumpDuel(F) {
+  const w = F.f.w, b = F.f.b, skip = new Set([w.s, b.s, w.ms, b.ms, w.p, b.p]);
+  return JSON.stringify({ t: F.t, flip: F.flip, hitstop: F.hitstop, cine: F.cine, proj: F.proj, fw: [w], fb: [b] }, function (k, v) {
+    if (v && typeof v === "object") { if (skip.has(v)) return undefined; if ((v === w || v === b) && !Array.isArray(this)) return { $f: v.color }; }
+    return v;
+  });
+}
+function netDuelLoad(o) {
+  const N = NET.duel, F = fight; if (!N || !F || o.d !== N.no || NET.host || F.result) return;
+  const d = JSON.parse(o.s, (k, v) => (v && v.$f ? F.f[v.$f] : v));
+  for (const c of ["w", "b"]) { const f = F.f[c], keep = { s: f.s, ms: f.ms, p: f.p, ai: null }, src = d["f" + c][0]; for (const k in f) delete f[k]; Object.assign(f, src, keep); }
+  F.t = d.t; F.flip = d.flip; F.hitstop = d.hitstop; F.cine = d.cine; F.proj = d.proj; F.events.length = 0;
+  N.frame = o.f; N.acc = 0; N.hashes.clear(); N.theirHash.clear();
+  while (N.mine.length <= N.frame + NET.D) N.mine.push(0);
 }
 
 /* =====================================================================
@@ -4040,7 +4508,7 @@ function recordGame() {
   if (!S.over || S.recorded) return;
   S.recorded = true;
   const p = me(); if (!p) return;
-  const human = CONFIG.human, opp = CPU_ELO[CONFIG.level] || 1300;
+  const human = CONFIG.human, opp = NET.peerName && S.online ? NET.peerRating : CPU_ELO[CONFIG.level] || 1300;
   const score = S.over.winner == null ? 0.5 : S.over.winner === human ? 1 : 0;
   const expected = 1 / (1 + Math.pow(10, (opp - p.rating) / 400));
   const K = p.games < 10 ? 40 : 24;
@@ -4050,7 +4518,7 @@ function recordGame() {
   else if (score === 0) { p.losses++; p.streak = p.streak < 0 ? p.streak - 1 : -1; }
   else { p.draws++; p.streak = 0; }
   ACCT.lastDelta = delta;
-  log(`${p.name}: ${score === 1 ? "win" : score === 0 ? "loss" : "draw"} vs ${["Easy", "Normal", "Hard"][CONFIG.level]} CPU, rating ${delta >= 0 ? "+" : ""}${delta} to ${p.rating}.`, score === 1 ? "heal" : "fight");
+  log(`${p.name}: ${score === 1 ? "win" : score === 0 ? "loss" : "draw"} vs ${S.online ? S.online : ["Easy", "Normal", "Hard"][CONFIG.level] + " CPU"}, rating ${delta >= 0 ? "+" : ""}${delta} to ${p.rating}.`, score === 1 ? "heal" : "fight");
   persist(); renderAccount();
 }
 // small dialog helper: text prompt or confirm
@@ -4102,7 +4570,7 @@ $("goView").addEventListener("click", () => { $("gameOver").hidden = true; });
 window.addEventListener("keydown", e => { if (e.key === "Escape" && !$("gameOver").hidden) $("gameOver").hidden = true; });
 
 /* ---------- Test hook ---------- */
-window.__h2h = { get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
+window.__h2h = { NET, get state() { return S; }, get fight() { return fight; }, get B3() { return B3; }, ACCT, render, CONFIG, STATS, onSquare, chooseCpuMove, newGame, startFight, R3, MOVESET, sim: { makeDuel, simStep, startMove, startSpecial, startThrow, startRage, tryStep, tryDash, blankInput } };
 
 /* ---------- Boot ---------- */
 function start(data) {

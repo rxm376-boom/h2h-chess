@@ -9,7 +9,7 @@ const profiles = `const PIECE_PROFILES = {
 let proj = R("old/proj.js"); const a = proj.indexOf("function toScreen("), b = proj.indexOf("const TEAM");
 if (a >= 0) proj = proj.slice(0, a) + proj.slice(b);
 const init = R("old/init3d.js").replace("wx(WALL_L)", "wx(AR.L)").replace("wx(WALL_R)", "wx(AR.R)");
-const js = [R("sim.js"), R("old/chess.js"), profiles, R("rig.js"), init, proj, R("old/debris.js"), R("anim.js"), R("arena.js"), R("game.js"), R("old/board.js")].join("\n");
+const js = [R("sim.js"), R("old/chess.js"), profiles, R("rig.js"), init, proj, R("old/debris.js"), R("anim.js"), R("arena.js"), R("stages.js"), R("game.js"), R("net.js"), R("old/board.js")].join("\n");
 const out = R("old/head.html") + "\n" + R("old/body.html") + "\n" + R("old/scripts.html") + "\n" + js;
 fs.writeFileSync(process.argv[2] || __dirname + "/out/h2h-chess.html", out);
 fs.writeFileSync(__dirname + "/out/all.js", "(() => {\n" + R("old/scripts.html").split("<script>\n(() => {")[1] + js.replace(/\}\)\(\);\s*<\/script>\s*$/, "})();"));
