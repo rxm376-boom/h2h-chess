@@ -2275,9 +2275,68 @@ function buildModel(f) {
   }
 
   mdl.head = buildHead(t, M, mdl); mdl.head.scale.setScalar(6.5); body.add(mdl.head);
+  // every part that only ever moves with its bone is welded to its neighbours of the same material: same picture, a third of the draw calls
+  const keep = new Set(), mark = v => { if (!v || typeof v !== "object") return; if (v.isObject3D) keep.add(v); else if (Array.isArray(v)) v.forEach(mark); };
+  for (const k in mdl) mark(mdl[k]); for (const k in mdl.extra) mark(mdl.extra[k]); for (const k in S) mark(S[k]); for (const ch of mdl.chains) mark(ch.list);
+  mdl.src = []; root.traverse(o => { if (o.isMesh) { o.updateMatrix(); mdl.src.push({ parent: o.parent, p: o.position.clone(), mat: o.material }); } }); // where the shards fly from when it shatters
+  mergeStatic(root, keep);
   root.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
-  R3.scene.add(root);
   return mdl;
+}
+// models are built once per piece type and side, then reused for every later duel
+function getModel(f) {
+  const C = R3.modelCache || (R3.modelCache = {}), key = f.t + f.color;
+  const mdl = C[key] || (C[key] = buildModel(f));
+  mdl.f = f; mdl.view = poseOver(STANCE[f.t]); mdl.fxT = {}; mdl.gone = false; mdl.root.visible = true;
+  for (const ch of mdl.chains) for (const g of ch.list) delete g.userData.a;
+  R3.scene.add(mdl.root);
+  return mdl;
+}
+/* ---------- welding static parts ---------- */
+function mergeGeoms(parts) { // parts: [{ geo, matrix }] -> one indexed geometry in the parent's space
+  const T = THREE; let nv = 0, ni = 0;
+  for (const q of parts) { nv += q.geo.attributes.position.count; ni += q.geo.index ? q.geo.index.count : q.geo.attributes.position.count; }
+  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const v = new T.Vector3(), nm = new T.Matrix3(); let vo = 0, io = 0;
+  for (const q of parts) {
+    const g = q.geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, flip = q.matrix.determinant() < 0;
+    nm.getNormalMatrix(q.matrix);
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(q.matrix); pos[(vo + i) * 3] = v.x; pos[(vo + i) * 3 + 1] = v.y; pos[(vo + i) * 3 + 2] = v.z;
+      if (N) { v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(vo + i) * 3] = v.x; nor[(vo + i) * 3 + 1] = v.y; nor[(vo + i) * 3 + 2] = v.z; }
+      if (U) { uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i); }
+    }
+    const n = g.index ? g.index.count : P.count;
+    for (let i = 0; i < n; i += 3) {
+      const a = g.index ? g.index.getX(i) : i, b = g.index ? g.index.getX(i + 1) : i + 1, c = g.index ? g.index.getX(i + 2) : i + 2;
+      idx[io++] = vo + a; idx[io++] = vo + (flip ? c : b); idx[io++] = vo + (flip ? b : c);
+    }
+    vo += P.count;
+  }
+  const out = new T.BufferGeometry();
+  out.setAttribute("position", new T.BufferAttribute(pos, 3)); out.setAttribute("normal", new T.BufferAttribute(nor, 3)); out.setAttribute("uv", new T.BufferAttribute(uv, 2));
+  out.setIndex(new T.BufferAttribute(idx, 1));
+  return out;
+}
+function mergeStatic(root, keep) {
+  const groups = [];
+  root.traverse(par => {
+    if (par.isMesh && par !== root) return;
+    const by = new Map();
+    for (const m of par.children) {
+      if (!m.isMesh || m.children.length || (keep && keep.has(m)) || Array.isArray(m.material) || !m.geometry.attributes.normal || m.material.transparent || m.userData.keep) continue;
+      const k = m.material.uuid + (m.castShadow ? "c" : "") + (m.receiveShadow ? "r" : "") + (m.visible ? "v" : "") + m.renderOrder;
+      (by.get(k) || by.set(k, []).get(k)).push(m);
+    }
+    for (const list of by.values()) if (list.length > 1) groups.push({ par, list });
+  });
+  for (const { par, list } of groups) {
+    const parts = list.map(m => { m.updateMatrix(); return { geo: m.geometry, matrix: m.matrix }; });
+    const m0 = list[0], mm = new THREE.Mesh(mergeGeoms(parts), m0.material);
+    mm.castShadow = m0.castShadow; mm.receiveShadow = m0.receiveShadow; mm.visible = m0.visible; mm.renderOrder = m0.renderOrder;
+    for (const m of list) { par.remove(m); if (!m.geometry.userData.shared) m.geometry.dispose(); }
+    par.add(mm);
+  }
 }
 function buildHead(t, M, mdl) {
   const T = THREE, h = new T.Group();
@@ -2480,7 +2539,9 @@ function init3D() {
     const T = THREE;
     R3.lite = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches); // phones: no MSAA target, lower pixel ratio
     R3.calm = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const renderer = new T.WebGLRenderer({ canvas: $("arena3d"), antialias: true, powerPreference: "high-performance" });
+    // the picture goes through the post-processing chain, which smooths edges in its own target; multisampling the canvas as well would only cost memory and fill rate
+    const post = !!(T.EffectComposer && T.RenderPass && T.ShaderPass && T.UnrealBloomPass && T.CopyShader && T.LuminosityHighPassShader);
+    const renderer = new T.WebGLRenderer({ canvas: $("arena3d"), antialias: !post, powerPreference: "high-performance" });
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
     renderer.physicallyCorrectLights = false;
@@ -2531,7 +2592,7 @@ function init3D() {
     const edge = new T.Mesh(new T.BoxGeometry(88, 0.3, 0.4), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 }));
     edge.position.set(0, 0.15, -20); scene.add(edge);
 
-    const hall0 = scene.children.length;
+    const hallPre = new Set(scene.children);
     // Hall: back wall, glowing windows with light shafts, banners, giant pieces
     const wall = new T.Mesh(new T.PlaneGeometry(140, 50), new T.MeshStandardMaterial({ color: 0x1b1534, roughness: 0.95, map: bricks("#221b3e", "#120d24") }));
     wall.material.map.repeat.set(14, 5); wall.position.set(0, 20, -20); scene.add(wall); R3.wall = wall; R3.banMats = null;
@@ -2554,7 +2615,7 @@ function init3D() {
       const geo = new T.PlaneGeometry(2.2, 8, 1, 6); geo.translate(0, -4, 0);
       const ban = new T.Mesh(geo, i % 2 ? banMat : banMat2); ban.position.set(bx, 17, -19.5); scene.add(ban);
       const rod = new T.Mesh(new T.CylinderGeometry(0.08, 0.08, 2.8, 8), gold); rod.rotation.z = Math.PI / 2; rod.position.set(bx, 17, -19.4); scene.add(rod);
-      R3.banners.push(ban);
+      ban.userData.keep = 1; R3.banners.push(ban);
     }
     const bgMat = new T.MeshStandardMaterial({ color: 0x0f0b1e, roughness: 0.25, metalness: 0.5 });
     [["R", -30], ["K", -15], ["Q", 15], ["B", 30]].forEach(([k, x]) => {
@@ -2562,7 +2623,8 @@ function init3D() {
       if (k === "R") for (let a = 0; a < 4; a++) { const c = new T.Mesh(new T.BoxGeometry(0.6, 0.7, 0.6), bgMat); c.scale.setScalar(0.86); c.position.set(x + Math.cos(a * Math.PI / 2) * 1.6, 9.95, -18 + Math.sin(a * Math.PI / 2) * 1.6); scene.add(c); }
       if (k === "K") { const c1 = new T.Mesh(new T.BoxGeometry(0.35, 1.6, 0.35), bgMat); c1.scale.setScalar(0.86); c1.position.set(x, 12.4, -18); scene.add(c1); const c2 = new T.Mesh(new T.BoxGeometry(1.1, 0.35, 0.35), bgMat); c2.scale.setScalar(0.86); c2.position.set(x, 12.6, -18); scene.add(c2); }
     });
-    R3.hallObjs = scene.children.slice(hall0); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
+    mergeStatic(scene, hallPre); // the hall's windows, bars, rods and statues never move: one mesh per material
+    R3.hallObjs = scene.children.filter(o => !hallPre.has(o)); R3.banMats = [banMat, banMat2]; R3.bgMat = bgMat;
     // Braziers at the arena edges
     R3.braziers = [];
     for (const x of [wx(AR.L) - 0.6, wx(AR.R) + 0.6]) {
@@ -2653,81 +2715,100 @@ function makeParticles(max, additive) {
     transparent: true, depthWrite: false, blending: additive ? T.AdditiveBlending : T.NormalBlending,
   });
   const pts = new T.Points(g, mat); pts.frustumCulled = false;
-  return { pts, mat, g, max, list: [] };
+  // live particles sit in one flat array (PS floats each), so a burst leaves nothing behind for the garbage collector
+  return { pts, mat, g, max, n: 0, d: new Float32Array(max * PS) };
 }
-const _c = window.THREE ? new THREE.Color() : null;
+const PS = 20, _c = window.THREE ? new THREE.Color() : null, _cc = new Map();
+function pcol(s) { let c = _cc.get(s); if (!c) { _c.set(s); _cc.set(s, c = [_c.r, _c.g, _c.b]); } return c; }
 function emit(sys, o) {
-  if (sys.list.length >= sys.max) sys.list.shift();
-  _c.set(o.col || "#ffffff");
-  const c2 = o.col2 ? new THREE.Color(o.col2) : null;
-  sys.list.push({ x: o.x, y: o.y, z: o.z || 0, vx: o.vx || 0, vy: o.vy || 0, vz: o.vz || 0, life: 0, max: o.life || 0.5,
-    s0: o.size || 0.2, s1: o.size1 != null ? o.size1 : (o.size || 0.2) * 0.3, r: _c.r, g: _c.g, b: _c.b, c2,
-    drag: o.drag != null ? o.drag : 3, grav: o.grav || 0, a0: o.alpha != null ? o.alpha : 1 });
+  const d = sys.d;
+  if (sys.n >= sys.max) { d.copyWithin(0, PS, sys.n * PS); sys.n--; } // full: the oldest goes
+  const i = sys.n++ * PS, c = pcol(o.col || "#ffffff"), c2 = o.col2 ? pcol(o.col2) : c, s0 = o.size || 0.2;
+  d[i] = o.x; d[i + 1] = o.y; d[i + 2] = o.z || 0; d[i + 3] = o.vx || 0; d[i + 4] = o.vy || 0; d[i + 5] = o.vz || 0; d[i + 6] = 0; d[i + 7] = o.life || 0.5;
+  d[i + 8] = s0; d[i + 9] = o.size1 != null ? o.size1 : s0 * 0.3; d[i + 10] = c[0]; d[i + 11] = c[1]; d[i + 12] = c[2]; d[i + 13] = c2[0]; d[i + 14] = c2[1]; d[i + 15] = c2[2];
+  d[i + 16] = o.drag != null ? o.drag : 3; d[i + 17] = o.grav || 0; d[i + 18] = o.alpha != null ? o.alpha : 1; d[i + 19] = 0;
 }
+const _bo = {};
 function burst(sys, x, y, z, n, o) {
+  const e = _bo, jit = o.jit || 0, many = Array.isArray(o.col);
+  e.z = z; e.size1 = o.size1; e.col2 = o.col2; e.drag = o.drag; e.grav = o.grav; e.alpha = o.alpha;
   for (let i = 0; i < n; i++) {
     const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), sp = o.spd[0] + Math.random() * (o.spd[1] - o.spd[0]);
     let dx = Math.sin(ph) * Math.cos(th), dy = Math.cos(ph), dz = Math.sin(ph) * Math.sin(th) * (o.flatZ != null ? o.flatZ : 0.6);
     if (o.up) dy = Math.abs(dy) * o.up;
     if (o.dir) dx = Math.abs(dx) * o.dir;
-    emit(sys, { x: x + (Math.random() - 0.5) * (o.jit || 0), y: y + (Math.random() - 0.5) * (o.jit || 0), z, vx: dx * sp, vy: dy * sp, vz: dz * sp,
-      life: o.life[0] + Math.random() * (o.life[1] - o.life[0]), size: o.size[0] + Math.random() * (o.size[1] - o.size[0]), size1: o.size1,
-      col: Array.isArray(o.col) ? o.col[(Math.random() * o.col.length) | 0] : o.col, col2: o.col2, drag: o.drag, grav: o.grav, alpha: o.alpha });
+    e.x = x + (Math.random() - 0.5) * jit; e.y = y + (Math.random() - 0.5) * jit; e.vx = dx * sp; e.vy = dy * sp; e.vz = dz * sp;
+    e.life = o.life[0] + Math.random() * (o.life[1] - o.life[0]); e.size = o.size[0] + Math.random() * (o.size[1] - o.size[0]);
+    e.col = many ? o.col[(Math.random() * o.col.length) | 0] : o.col;
+    emit(sys, e);
   }
 }
 function stepParticles(sys, dt) {
-  const L = sys.list, pos = sys.g.attributes.position.array, col = sys.g.attributes.pcol.array, sz = sys.g.attributes.psize.array, al = sys.g.attributes.palpha.array;
+  const d = sys.d, A = sys.g.attributes, pos = A.position.array, col = A.pcol.array, sz = A.psize.array, al = A.palpha.array;
   let n = 0;
-  for (let i = 0; i < L.length; i++) {
-    const p = L[i]; p.life += dt;
-    if (p.life >= p.max) continue;
-    const k = p.life / p.max, dr = Math.exp(-p.drag * dt);
-    p.vx *= dr; p.vy = p.vy * dr + p.grav * dt; p.vz *= dr;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-    if (p.y < 0.02 && p.grav < 0) { p.y = 0.02; p.vy *= -0.3; }
-    L[n] = p;
-    pos[n * 3] = p.x; pos[n * 3 + 1] = p.y; pos[n * 3 + 2] = p.z;
-    const fade = (1 - k) * p.a0;
-    if (p.c2) { col[n * 3] = p.r + (p.c2.r - p.r) * k; col[n * 3 + 1] = p.g + (p.c2.g - p.g) * k; col[n * 3 + 2] = p.b + (p.c2.b - p.b) * k; }
-    else { col[n * 3] = p.r; col[n * 3 + 1] = p.g; col[n * 3 + 2] = p.b; }
-    sz[n] = p.s0 + (p.s1 - p.s0) * k; al[n] = fade;
+  for (let j = 0, i = 0; j < sys.n; j++, i += PS) {
+    const life = d[i + 6] + dt, max = d[i + 7];
+    if (life >= max) continue;
+    const k = life / max, dr = Math.exp(-d[i + 16] * dt), grav = d[i + 17];
+    let vx = d[i + 3] * dr, vy = d[i + 4] * dr + grav * dt, vz = d[i + 5] * dr;
+    let x = d[i] + vx * dt, y = d[i + 1] + vy * dt, z = d[i + 2] + vz * dt;
+    if (y < 0.02 && grav < 0) { y = 0.02; vy *= -0.3; }
+    const o = n * PS;
+    if (o !== i) d.copyWithin(o, i, i + PS);
+    d[o] = x; d[o + 1] = y; d[o + 2] = z; d[o + 3] = vx; d[o + 4] = vy; d[o + 5] = vz; d[o + 6] = life;
+    pos[n * 3] = x; pos[n * 3 + 1] = y; pos[n * 3 + 2] = z;
+    col[n * 3] = d[o + 10] + (d[o + 13] - d[o + 10]) * k; col[n * 3 + 1] = d[o + 11] + (d[o + 14] - d[o + 11]) * k; col[n * 3 + 2] = d[o + 12] + (d[o + 15] - d[o + 12]) * k;
+    sz[n] = d[o + 8] + (d[o + 9] - d[o + 8]) * k; al[n] = (1 - k) * d[o + 18];
     n++;
   }
-  L.length = n;
-  for (const a of ["position", "pcol", "psize", "palpha"]) sys.g.attributes[a].needsUpdate = true;
-  sys.g.setDrawRange(0, n);
+  sys.n = n;
+  if (n || sys.drawn) { A.position.needsUpdate = A.pcol.needsUpdate = A.psize.needsUpdate = A.palpha.needsUpdate = true; }
+  sys.drawn = n; sys.g.setDrawRange(0, n);
 }
 
+// bolt, beam and shockwave meshes share their materials and shapes for the whole session: nothing is compiled or freed mid-fight
+function projMats(color) {
+  const T = THREE, C = R3.projM || (R3.projM = {}); if (C[color]) return C[color];
+  const w = color === "w", coreC = w ? 0xeaf6ff : 0xffd27a, haloC = w ? 0x6fc8ff : 0xff8a2a;
+  return (C[color] = {
+    core: new T.MeshStandardMaterial({ color: 0, emissive: coreC, emissiveIntensity: 3 }),
+    halo: new T.MeshBasicMaterial({ color: haloC, transparent: true, opacity: 0.5, depthWrite: false, blending: T.AdditiveBlending }),
+    wave: new T.MeshStandardMaterial({ color: 0x8a7a66, roughness: 0.8, emissive: 0xff6a1a, emissiveIntensity: 0.55, flatShading: true }),
+  });
+}
+function projGeo(key, make) { const C = R3.projG || (R3.projG = {}); if (!C[key]) { C[key] = make(); C[key].userData.shared = true; } return C[key]; }
 function projMesh(p) {
-  const T = THREE, g = new T.Group(), w = p.owner.color === "w";
-  const coreC = w ? 0xeaf6ff : 0xffd27a, haloC = w ? 0x6fc8ff : 0xff8a2a;
-  const core = new T.MeshStandardMaterial({ color: 0, emissive: coreC, emissiveIntensity: 3 });
-  const halo = new T.MeshBasicMaterial({ color: haloC, transparent: true, opacity: 0.5, depthWrite: false, blending: T.AdditiveBlending });
+  const T = THREE, g = new T.Group(), PM = projMats(p.owner.color), core = PM.core, halo = PM.halo;
   if (p.kind === "wave") {
     // a ridge of stone spikes erupting from the floor
-    const wm = new T.MeshStandardMaterial({ color: 0x8a7a66, roughness: 0.8, emissive: 0xff6a1a, emissiveIntensity: 0.55, flatShading: true });
+    const wm = PM.wave;
     for (const [x, z, hgt, r, tilt] of [[0, 0, 2.6, 0.7, 0.25], [-0.9, 0.5, 1.7, 0.5, 0.1], [-0.8, -0.6, 1.9, 0.55, 0.15], [-1.7, 0.1, 1.1, 0.42, 0], [0.5, 0.9, 1.2, 0.4, 0.3], [0.4, -1.0, 1.3, 0.4, 0.3]]) {
-      const c = new T.Mesh(new T.ConeGeometry(r, hgt, 5), wm); c.position.set(x * Math.sign(p.vx), hgt / 2 - 0.1, z); c.rotation.z = -tilt * Math.sign(p.vx); c.castShadow = true; g.add(c);
+      const c = new T.Mesh(projGeo("cone" + r + "_" + hgt, () => new T.ConeGeometry(r, hgt, 5)), wm); c.position.set(x * Math.sign(p.vx), hgt / 2 - 0.1, z); c.rotation.z = -tilt * Math.sign(p.vx); c.castShadow = true; g.add(c);
     }
     const h = new T.Mesh(G3.sph, halo); h.scale.set(1.2, 0.5, 1.2); h.position.y = 0.2; g.add(h);
   } else if (p.kind === "beam") {
     const c = new T.Mesh(G3.sph, core); c.scale.set(1.6, 0.22, 0.22); g.add(c);
     const h = new T.Mesh(G3.sph, halo); h.scale.set(2.0, 0.55, 0.55); g.add(h);
     const tip = new T.Mesh(G3.sph, core); tip.scale.setScalar(0.42); tip.position.x = Math.sign(p.vx) * 1.4; g.add(tip);
-    const ring = new T.Mesh(new T.TorusGeometry(0.5, 0.05, 6, 24), core); ring.rotation.y = Math.PI / 2; g.add(ring); g.userData.ring = ring;
+    const ring = new T.Mesh(projGeo("torus", () => new T.TorusGeometry(0.5, 0.05, 6, 24)), core); ring.rotation.y = Math.PI / 2; g.add(ring); g.userData.ring = ring;
   } else {
-    const c = new T.Mesh(new T.OctahedronGeometry(0.3), core); c.scale.set(1.8, 0.7, 0.7); g.add(c);
+    const c = new T.Mesh(projGeo("octa", () => new T.OctahedronGeometry(0.3)), core); c.scale.set(1.8, 0.7, 0.7); g.add(c);
     const h = new T.Mesh(G3.sph, halo); h.scale.set(0.8, 0.38, 0.38); g.add(h);
   }
   R3.scene.add(g);
   return g;
 }
 const TEAM = { w: { hi: "#bfe8ff", mid: "#6fc8ff", deep: "#2a7cff" }, b: { hi: "#ffe2a0", mid: "#ffa040", deep: "#ff5a1a" } };
+// shock rings are recycled: a new material per ring meant a shader build (and a stall) on hits in some arenas
+function ringMat(col) { return new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }); }
 function ring3(x, y, z, col, r0, r1, dur, flat) {
-  const m = new THREE.Mesh(G3.ring, new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-  m.position.set(x, y, z); if (flat) m.rotation.x = -Math.PI / 2;
+  const pool = R3.ringPool || (R3.ringPool = []), m = pool.pop() || new THREE.Mesh(G3.ring, ringMat(col));
+  m.material.color.set(col); m.material.opacity = 1; m.scale.setScalar(1); m.rotation.set(flat ? -Math.PI / 2 : 0, 0, 0);
+  m.position.set(x, y, z);
   R3.scene.add(m); R3.rings.push({ m, t: 0, dur, r0, r1, flat });
 }
+function ringFree(r) { R3.scene.remove(r.m); (R3.ringPool || (R3.ringPool = [])).push(r.m); }
+function tileMats() { return R3.tileM || (R3.tileM = { L: new THREE.MeshStandardMaterial({ color: 0xd6c49c, roughness: 0.3 }), D: new THREE.MeshStandardMaterial({ color: 0x3a2f55, roughness: 0.3 }) }); }
 function lightPulse(x, y, col, power) { const L = R3.fxLight; L.position.set(x, y, 2); L.color.set(col); L.intensity = Math.max(L.intensity, power); }
 function rocks(x, n, mat, spd) {
   for (let i = 0; i < n; i++) {
@@ -2739,7 +2820,7 @@ function rocks(x, n, mat, spd) {
 }
 function floorTile(x, z, delay) {
   const light = ((Math.floor(x / 2.73) + Math.floor(z / 2.73)) % 2 + 2) % 2 === 0;
-  const m = new THREE.Mesh(G3.box, light ? R3.tileMatL || (R3.tileMatL = new THREE.MeshStandardMaterial({ color: 0xd6c49c, roughness: 0.3 })) : R3.tileMatD || (R3.tileMatD = new THREE.MeshStandardMaterial({ color: 0x3a2f55, roughness: 0.3 })));
+  const m = new THREE.Mesh(G3.box, light ? R3.tileMatL || (R3.tileMatL = tileMats().L) : R3.tileMatD || (R3.tileMatD = tileMats().D));
   m.scale.set(1.1, 0.3, 1.1); m.position.set(x, -0.2, z); m.castShadow = true; R3.scene.add(m);
   R3.tiles.push({ m, t: -delay, vy: 7 + Math.random() * 3, y: -0.2, rx: (Math.random() - 0.5) * 3, rz: (Math.random() - 0.5) * 3 });
 }
@@ -2752,18 +2833,18 @@ function stepDebris(dt) {
     if (fr.m.position.y < fr.r) { fr.m.position.y = fr.r; fr.vy *= -0.35; fr.vx *= 0.6; fr.vz *= 0.6; fr.ax *= 0.6; fr.az *= 0.6; }
     if (fr.max < 99 && fr.life > fr.max) fr.m.scale.multiplyScalar(0.9);
   }
-  R3.frags = R3.frags.filter(fr => { if (fr.max < 99 && fr.life > fr.max + 0.5) { R3.scene.remove(fr.m); return false; } return true; });
+  if (R3.frags.length) R3.frags = R3.frags.filter(fr => { if (fr.max < 99 && fr.life > fr.max + 0.5) { R3.scene.remove(fr.m); return false; } return true; });
   for (const ti of R3.tiles) {
     ti.t += dt; if (ti.t < 0) continue;
     ti.vy -= 26 * dt; ti.y += ti.vy * dt; ti.m.position.y = ti.y; ti.m.rotation.x += ti.rx * dt; ti.m.rotation.z += ti.rz * dt;
   }
-  R3.tiles = R3.tiles.filter(ti => { if (ti.t > 0.2 && ti.y < -0.4) { R3.scene.remove(ti.m); return false; } return true; });
+  if (R3.tiles.length) R3.tiles = R3.tiles.filter(ti => { if (ti.t > 0.2 && ti.y < -0.4) { R3.scene.remove(ti.m); return false; } return true; });
   for (const r of R3.rings) {
     r.t += dt; const k = Math.min(1, r.t / r.dur), e = 1 - Math.pow(1 - k, 2);
     r.m.scale.setScalar(r.r0 + (r.r1 - r.r0) * e); r.m.material.opacity = (1 - k) * 0.9;
     if (!r.flat) r.m.quaternion.copy(R3.camera.quaternion);
   }
-  R3.rings = R3.rings.filter(r => { if (r.t >= r.dur) { R3.scene.remove(r.m); r.m.material.dispose(); return false; } return true; });
+  if (R3.rings.length) R3.rings = R3.rings.filter(r => { if (r.t >= r.dur) { ringFree(r); return false; } return true; });
   R3.fxLight.intensity *= Math.exp(-dt * 9);
 }
 
@@ -3139,14 +3220,15 @@ function stageExtras() {
   const T = THREE, scene = R3.scene;
   const colMat = new T.MeshStandardMaterial({ color: 0x2a2244, roughness: 0.35, metalness: 0.3, map: marble("#3a3058", "#8a7ab0", 51) });
   const gold = new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.25 });
-  const col0 = scene.children.length;
+  const colPre = new Set(scene.children);
   for (let i = -3; i <= 3; i++) {
     if (i === 0) continue;
     const x = i * 11 + (i > 0 ? -3 : 3);
     const col = new T.Mesh(lathe([[1.5, 0], [1.5, 0.5], [1.15, 0.9], [1.0, 1.4], [0.92, 15], [1.2, 15.5], [1.5, 16], [1.5, 17]], 18), colMat); col.position.set(x, 0, -10.5); col.castShadow = true; scene.add(col);
     for (const y of [1.1, 15.2]) { const r = new T.Mesh(new T.TorusGeometry(1.08, 0.1, 8, 24), gold); r.rotation.x = Math.PI / 2; r.position.set(x, y, -10.5); scene.add(r); }
   }
-  R3.colObjs = scene.children.slice(col0);
+  mergeStatic(scene, colPre);
+  R3.colObjs = scene.children.filter(o => !colPre.has(o));
   const inlay = new T.Mesh(new T.RingGeometry(13.2, 13.5, 96), new T.MeshStandardMaterial({ color: 0xd9a63e, metalness: 1, roughness: 0.3, transparent: true, opacity: 0.85 }));
   inlay.rotation.x = -Math.PI / 2; inlay.position.set(0, 0.012, 0); scene.add(inlay);
   const inlay2 = new T.Mesh(new T.RingGeometry(6.0, 6.12, 72), inlay.material); inlay2.rotation.x = -Math.PI / 2; inlay2.position.set(0, 0.012, 0); scene.add(inlay2);
@@ -3161,42 +3243,63 @@ function setup3D(F) {
   teardown3D();
   if (!R3.blobs) stageExtras();
   applyStage(F.stage || 0, F.lightSq);
-  R3.models = [buildModel(F.f.w), buildModel(F.f.b)];
+  R3.models = [getModel(F.f.w), getModel(F.f.b)];
+  if (R3.qPend) { R3.qPend = false; R3.renderer.shadowMap.enabled = false; R3.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } // the shadow step-down waits for a new duel, where the rebuild is hidden
   for (const m of R3.models) m.introAt = m.f.isAtt ? F.intro.tA : F.intro.tD;
   R3.cam = { x: 0, y: 4.5, z: 24, lx: 0, ly: 3.5 }; R3.shot = null; R3.shake = 0; R3.punch = 0;
   R3.last = performance.now(); R3.time = 0; R3.tileT = 0;
   R3.post = { dark: 0, tint: 0, desat: 0 };
+  warm3D();
+}
+// Compile every shader and upload every texture the duel can need while the VS card still covers the screen,
+// so the first hit, bolt, floor slam or shatter does not stall the fight.
+function warm3D() {
+  const T = THREE, tmp = new T.Group(), cam = R3.camera, vis = [];
+  try {
+    const add = (geo, mat, shadow) => { const m = new T.Mesh(geo, mat); m.castShadow = !!shadow; m.frustumCulled = false; m.scale.setScalar(0.01); tmp.add(m); };
+    add(G3.ring, ringMat(0xffffff));
+    for (const c of ["w", "b"]) { const pm = projMats(c); add(G3.sph, pm.core); add(G3.sph, pm.halo); add(G3.box, pm.wave, true); add(G3.box, mats3D(c).armor, true); }
+    add(G3.box, tileMats().L, true); add(G3.box, tileMats().D, true);
+    for (const m of R3.models) { m.root.traverse(o => { if (o.isMesh) add(G3.box, o.material, true); }); if (!m.root.visible) { vis.push(m.root); m.root.visible = true; } }
+    tmp.position.set(0, 3, 0); R3.scene.add(tmp);
+    emit(R3.glow, { x: 0, y: 3, z: 0, life: 1, size: 0.01 }); emit(R3.smoke, { x: 0, y: 3, z: 0, life: 1, size: 0.01 }); stepParticles(R3.glow, 0); stepParticles(R3.smoke, 0);
+    for (const fl of R3.flashes) fl.userData.wv = fl.visible, fl.visible = true;
+    cam.position.set(0, 4.5, 24); cam.lookAt(0, 3.5, 0);
+    if (R3.composer) R3.composer.render(0); else R3.renderer.render(R3.scene, cam);
+  } catch (e) { console.warn("warm-up skipped", e); }
+  for (const fl of R3.flashes) fl.visible = !!fl.userData.wv;
+  for (const r of vis) r.visible = false;
+  R3.scene.remove(tmp); R3.glow.n = 0; R3.smoke.n = 0;
 }
 function teardown3D() {
   if (!R3.renderer) return;
-  const kill = o => { R3.scene.remove(o); o.traverse(c => { if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose(); }); };
-  for (const m of R3.models) kill(m.root);
+  for (const m of R3.models) R3.scene.remove(m.root); // kept for the next duel of the same piece
   R3.models = [];
-  for (const [, mesh] of R3.proj) { kill(mesh); mesh.traverse(c => { if (c.isMesh) c.material.dispose(); }); }
+  for (const [, mesh] of R3.proj) R3.scene.remove(mesh);
   R3.proj.clear();
   for (const fr of R3.frags) R3.scene.remove(fr.m);
   for (const ti of R3.tiles) R3.scene.remove(ti.m);
-  for (const r of R3.rings) { R3.scene.remove(r.m); r.m.material.dispose(); }
+  for (const r of R3.rings) ringFree(r);
   R3.frags = []; R3.tiles = []; R3.rings = [];
-  R3.glow.list.length = 0; R3.smoke.list.length = 0;
+  R3.glow.n = 0; R3.smoke.n = 0;
 }
+const _v3 = window.THREE ? new THREE.Vector3() : null;
 function toScreen(x, h) { // arena point -> fraction of the screen
-  const v = new THREE.Vector3(wx(x), h / 10, 0).project(R3.camera);
+  const v = _v3.set(wx(x), h / 10, 0).project(R3.camera);
   return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
 }
 
 /* ---------- effects ---------- */
 function shatter(mdl) {
-  const T = THREE, f = mdl.f, root = mdl.root, meshes = [];
+  const T = THREE, f = mdl.f, root = mdl.root, meshes = mdl.src;
   root.updateMatrixWorld(true);
-  root.traverse(o => { if (o.isMesh) meshes.push(o); });
   const c = { x: wx(f.x), y: 0.6 }, v = new T.Vector3();
   for (let i = 0; i < 80; i++) {
     const src = meshes[(Math.random() * meshes.length) | 0];
-    src.getWorldPosition(v);
-    const m = new T.Mesh(G3.shards[i % 3], src.material); m.castShadow = true;
+    src.parent.localToWorld(v.copy(src.p));
+    const m = new T.Mesh(G3.shards[i % 3], src.mat); m.castShadow = true;
     const sc = 0.1 + Math.random() * 0.24; m.scale.setScalar(sc);
-    m.position.copy(v).add(new T.Vector3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3));
+    m.position.set(v.x + (Math.random() - 0.5) * 0.3, v.y + (Math.random() - 0.5) * 0.3, v.z + (Math.random() - 0.5) * 0.3);
     R3.scene.add(m);
     const dx = m.position.x - c.x, dy = m.position.y - c.y + 0.6;
     R3.frags.push({ m, vx: dx * 4 + (Math.random() - 0.5) * 6, vy: 5 + dy * 3 + Math.random() * 6, vz: (Math.random() - 0.5) * 7, ax: (Math.random() - 0.5) * 14, az: (Math.random() - 0.5) * 14, r: sc, life: 0, max: 99 });
@@ -3303,7 +3406,7 @@ function handleEvent(F, e) {
 function introFx(F, mdl, name) {
   if (mdl.fxT[name]) return; mdl.fxT[name] = 1;
   const f = mdl.f, x = wx(f.x), G = R3.glow, tc = TEAM[f.color];
-  if (name === "clang") { const p = new THREE.Vector3(); mdl.seg.lfa.getWorldPosition(p); burst(G, p.x + f.face * 0.6, p.y + 0.6, 0.6, 26, { spd: [3, 10], life: [0.15, 0.4], size: [0.08, 0.2], col: ["#ffe9a8", "#ffffff"], drag: 5, grav: -8 }); lightPulse(p.x, p.y, "#ffd8a0", 3); R3.shake = Math.max(R3.shake, 0.08); }
+  if (name === "clang") { const p = _v3; mdl.seg.lfa.getWorldPosition(p); burst(G, p.x + f.face * 0.6, p.y + 0.6, 0.6, 26, { spd: [3, 10], life: [0.15, 0.4], size: [0.08, 0.2], col: ["#ffe9a8", "#ffffff"], drag: 5, grav: -8 }); lightPulse(p.x, p.y, "#ffd8a0", 3); R3.shake = Math.max(R3.shake, 0.08); }
   else if (name === "land") { dustAt(x, 14, true); ring3(x, 0.05, 0, 0xcfc0ff, 0.3, 3, 0.3, true); R3.shake = Math.max(R3.shake, 0.12); }
   else if (name === "slam") { dustAt(x, 26, true); ring3(x, 0.05, 0, 0xffb050, 0.3, 5.5, 0.5, true); R3.shake = 0.45; for (let i = -2; i <= 2; i++) floorTile(x + i * 1.1, (Math.random() - 0.5) * 2, Math.abs(i) * 0.04); rocks(x, 14, R3.tileMatD || mats3D(f.color).armor, 7); lightPulse(x, 1, "#ffb050", 5); }
   else if (name === "blink") { burst(G, x, 4, 0.3, 46, { spd: [3, 10], life: [0.25, 0.6], size: [0.1, 0.24], col: [tc.hi, "#b48cff", "#ffffff"], drag: 4 }); ring3(x, 4, 0.3, 0xb48cff, 0.2, 3.2, 0.4); lightPulse(x, 4, "#b48cff", 5); }
@@ -3334,8 +3437,8 @@ function continuousFx(F, dt) {
     }
     if (f.state === "special" && f.sp && f.sp.kind === "beam" && f.mt < 0.16) emit(G, { x: wx(f.x + f.face * 20) + (Math.random() - 0.5), y: 4.6 + (Math.random() - 0.5), z: 0.3, life: 0.15, size: 0.12, col: tc.hi });
     if (f.state === "special" && f.sp && f.sp.kind === "quake" && f.mt < 0.26) for (let i = 0; i < 2; i++) emit(G, { x: c.x + (Math.random() - 0.5) * 2, y: 0.2, z: (Math.random() - 0.5), vy: 2 + Math.random() * 3, life: 0.4, size: 0.12, col: "#ffb050", alpha: 0.8 });
-    if (mdl.extra.orb && Math.random() < 0.35) { const p = new THREE.Vector3(); mdl.extra.orb.getWorldPosition(p); emit(G, { x: p.x, y: p.y, z: p.z, vy: 0.8, vx: (Math.random() - 0.5) * 0.4, life: 0.5, size: 0.1, col: tc.hi, alpha: 0.7 }); }
-    if (mdl.extra.tipGem && Math.random() < 0.2) { const p = new THREE.Vector3(); mdl.extra.tipGem.getWorldPosition(p); emit(G, { x: p.x, y: p.y, z: p.z, vy: 0.6, life: 0.4, size: 0.08, col: tc.hi, alpha: 0.6 }); }
+    if (mdl.extra.orb && Math.random() < 0.35) { const p = _v3; mdl.extra.orb.getWorldPosition(p); emit(G, { x: p.x, y: p.y, z: p.z, vy: 0.8, vx: (Math.random() - 0.5) * 0.4, life: 0.5, size: 0.1, col: tc.hi, alpha: 0.7 }); }
+    if (mdl.extra.tipGem && Math.random() < 0.2) { const p = _v3; mdl.extra.tipGem.getWorldPosition(p); emit(G, { x: p.x, y: p.y, z: p.z, vy: 0.6, life: 0.4, size: 0.08, col: tc.hi, alpha: 0.6 }); }
   }
   R3.tileT += dt;
   for (const p of F.proj) {
@@ -3398,9 +3501,9 @@ function draw3D(F) {
   R3.time += fdt; const time = R3.time;
   // quality step-down: if the fight runs under ~38 fps for a while, drop resolution first, then bloom and shadows
   if (F.phase === "fight" && !F.cine && !navigator.webdriver) { const Q = R3.q || (R3.q = { n: 0, acc: 0, lvl: 0 }); const gap = now - (Q.prev || now); Q.prev = now; if (gap < 250) { Q.n++; Q.acc += gap; } else { Q.n = 0; Q.acc = 0; }
-    if (Q.n >= 80) { if (Q.acc / Q.n > 26 && Q.lvl < 2) { Q.lvl++; if (Q.lvl === 1) { R3.qScale = 0.67; resize3D(); } else { if (R3.bloom) R3.bloom.enabled = false; R3.renderer.shadowMap.enabled = false; R3.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } } Q.n = 0; Q.acc = 0; } }
+    if (Q.n >= 80) { if (Q.acc / Q.n > 26 && Q.lvl < 2) { Q.lvl++; if (Q.lvl === 1) { R3.qScale = 0.67; resize3D(); } else { if (R3.bloom) R3.bloom.enabled = false; R3.qPend = true; } } Q.n = 0; Q.acc = 0; } }
   else if (R3.q) R3.q.prev = 0;
-  for (const e of F.events) handleEvent(F, e);
+  for (const e of F.events) { try { handleEvent(F, e); } catch (err) { console.error("effect failed", e.type, err); } }
   for (const m of R3.models) {
     const f = m.f;
     let P, k;
@@ -3418,17 +3521,14 @@ function draw3D(F) {
     poseRig(m, Vw, time, fdt);
   }
   R3.models.forEach((m, i) => { const b = R3.blobs[i], f = m.f, k = Math.max(0.25, 1 - (f.y + m.view.dy) / 110); b.visible = m.root.visible; b.position.x = wx(f.x + f.face * m.view.dx); b.position.z = f.z / 10; b.scale.set(3.6 * k, 2.4 * k, 1); b.material.opacity = 0.75 * k; });
-  const live = new Set();
   for (const p of F.proj) {
-    live.add(p);
     let m = R3.proj.get(p); if (!m) { m = projMesh(p); R3.proj.set(p, m); }
     m.position.set(wx(p.x), p.kind === "wave" ? 0 : p.h / 10, 0);
     if (p.kind === "wave") m.scale.y = 0.85 + Math.abs(Math.sin(time * 22)) * 0.3;
     else if (p.kind === "bolt") { m.rotation.z = Math.atan2(p.vh, p.vx); m.rotation.x = time * 10; }
     else if (m.userData.ring) { const k = (time * 3) % 1; m.userData.ring.position.x = -Math.sign(p.vx) * k * 2; m.userData.ring.scale.setScalar(1 + k); }
   }
-  for (const [p, m] of R3.proj) if (!live.has(p)) {
-    m.traverse(c => { if (c.isMesh) { if (!c.geometry.userData.shared && c.geometry !== G3.sph) c.geometry.dispose(); c.material.dispose(); } });
+  for (const [p, m] of R3.proj) if (!F.proj.includes(p)) {
     burst(R3.glow, m.position.x, m.position.y, 0, 14, { spd: [2, 6], life: [0.15, 0.3], size: [0.1, 0.2], col: TEAM[p.owner.color].hi, drag: 4 });
     R3.scene.remove(m); R3.proj.delete(p);
   }
@@ -3507,7 +3607,7 @@ function buildStages() {
   add(court, new T.CircleGeometry(2.06, 20, 0, Math.PI), new T.MeshBasicMaterial({ color: 0x06080f }), 0, 4.4, -19.55);
   const hedge = new T.MeshStandardMaterial({ color: 0x0f2219, roughness: 1 });
   for (const x of [-40, -34, -14, 14, 34, 40]) { add(court, new T.ConeGeometry(1.3, 6.4, 10), hedge, x, 3.2, -18.6); }
-  court.visible = false; scene.add(court);
+  mergeStatic(court); court.visible = false; scene.add(court);
 
   // --- Throne Vault: crimson and gold, a throne on a dais, hanging chandeliers ---
   const vault = new T.Group();
@@ -3535,7 +3635,7 @@ function buildStages() {
     const L = new T.PointLight(0xffa050, 0.9, 30, 2); L.position.set(0, -0.5, 0); c.add(L);
     vault.add(c); R3.chand.push(c);
   }
-  vault.visible = false; scene.add(vault);
+  mergeStatic(vault); vault.visible = false; scene.add(vault);
   R3.sets = [null, court, vault];
 }
 function applyStage(i, light) {
@@ -3781,7 +3881,7 @@ function hudFrame(F) {
   const cine = !!F.cine || (F.phase === "intro" && F.phaseT < F.intro.tWide) || (F.phase === "outro" && F.outroT >= F.outro.tWin);
   hud.classList.toggle("cine", cine);
   layer.classList.toggle("nofight", F.phase !== "fight" || !!F.cine);
-  const me = F.f[CONFIG.human], sb = document.querySelector(".pad .b-s");
+  const me = F.f[CONFIG.human], sb = H.spBtn || (H.spBtn = document.querySelector(".pad .b-s"));
   if (sb && me) sb.classList.toggle("empty", !spReady(me) && !(me.rage && !me.rageUsed));
 }
 function dmgNumber(e) {
@@ -3815,7 +3915,7 @@ function hudEvent(F, e) {
     case "boom": duelSfx("ko"); break;
     case "shatter": duelSfx("shatter"); break;
     case "cine": { duelSfx(e.rage ? "rage" : "special"); const mn = $("mvName"); mn.textContent = F.cine ? F.cine.label : ""; mn.className = `mvname ${e.f.color} ${e.rage ? "rage" : ""}`; restart(mn, "go"); break; }
-    case "rageart": { const mn = $("mvName"); mn.textContent = F.cine.label; mn.className = `mvname ${e.f.color} rage hold`; restart(mn, "go"); break; }
+    case "rageart": { const mn = $("mvName"); mn.textContent = F.cine ? F.cine.label : e.f.s.rageName; mn.className = `mvname ${e.f.color} rage hold`; restart(mn, "go"); break; }
     case "ko": musicStop(0.5); announce(e.timeout ? "TIME UP" : "K.O.", e.timeout ? "time" : "ko"); duelSfx(e.timeout ? "fight" : "ko"); $("mvName").className = "mvname"; break;
   }
 }
@@ -3838,18 +3938,36 @@ function startFight(att, def, onDone, opts) {
   }
   document.body.classList.add("dueling");
   layer.hidden = false;
+  if (R3.drawFail) { R3.drawFail = false; R3.ok = !R3.lost; } // the 3D picture failed last duel: give it another go
   if (init3D()) { layer.classList.add("three"); resize3D(); setup3D(F); } else layer.classList.remove("three");
   hudSetup(F);
   $("exitBtn").hidden = !F.practice; $("movesBtn").hidden = !F.practice; $("pMoves").hidden = true;
   if (F.practice) $("pMovesList").innerHTML = moveList(F.f[F.me].t);
-  requestAnimationFrame(loop);
+  F.tick = now => loop(F, now); F.bad = { step: 0, draw: 0 };
+  requestAnimationFrame(F.tick);
   return F;
 }
-function loop(now) {
-  const F = fight; if (!F) return;
+// One frame of a duel. The next frame is booked before anything else runs and each stage is fenced off,
+// so a fault in one frame (a missing element, a lost graphics context) can never leave the fight frozen on screen.
+function loop(F, now) {
+  if (fight !== F) return;
+  requestAnimationFrame(F.tick);
   const rdt = Math.min(0.05, Math.max(0, (now - F.last) / 1000)); F.last = now;
-  stepDuel(F, rdt);
-  if (fight === F) { for (const e of F.events) hudEvent(F, e); hudFrame(F); drawDuel(F); F.events.length = 0; requestAnimationFrame(loop); }
+  try { stepDuel(F, rdt); F.bad.step = 0; }
+  catch (e) {
+    console.error("duel step failed", e);
+    if (++F.bad.step > 30 && !F.net && F.phase === "fight" && !F.result) { // the rules engine is stuck: settle the duel on health, as the clock would
+      try { F.cine = null; endDuel(F, null); } catch (e2) { F.result = { attackerWon: false, attackerHp: F.att.hp, defenderHp: Math.max(1, F.def.hp), timeout: true }; }
+      F.phase = "outro"; F.outroT = 0; F.slow = 0; F.outro = { tWin: 1.0, end: 3.3, said: false };
+    } else if (F.bad.step > 30 && F.phase === "outro") endFight(F);
+  }
+  if (fight === F) {
+    for (const e of F.events) { try { hudEvent(F, e); } catch (err) { console.error("hud event failed", e.type, err); } }
+    try { hudFrame(F); } catch (e) { console.error("hud failed", e); }
+    try { drawDuel(F); F.bad.draw = 0; }
+    catch (e) { console.error("draw failed", e); if (++F.bad.draw > 5 && R3.ok) { R3.ok = false; R3.drawFail = true; layer.classList.remove("three"); } } // fall back to the flat renderer rather than a frozen picture
+    F.events.length = 0;
+  }
   pressed.clear(); touch.pressed.clear();
 }
 function showPlate(f) {
@@ -3918,6 +4036,22 @@ $("exitBtn").addEventListener("click", () => { const F = fight; if (F && F.pract
 $("movesBtn").addEventListener("click", () => { $("pMoves").hidden = !$("pMoves").hidden; });
 for (const b of document.querySelectorAll(".sndToggle")) b.addEventListener("click", () => { auInit(); setMuted(!AU.muted); });
 setMuted(AU.muted);
+
+/* ---------- getting the arena ready ahead of time ---------- */
+// The hall, the other two arenas and the ten fighter models are built in idle moments on the board,
+// one piece of work at a time, so the first duel opens as quickly as any later one.
+function preload3D() {
+  const idle = window.requestIdleCallback ? fn => requestIdleCallback(fn, { timeout: 3000 }) : fn => setTimeout(fn, 250);
+  const jobs = [() => { if (init3D()) { if (!R3.blobs) stageExtras(); } }, () => { if (R3.ok && !R3.sets) buildStages(); }];
+  for (const c of ["w", "b"]) for (const t of "QRNBP") jobs.push(() => { if (!R3.ok) return; const C = R3.modelCache || (R3.modelCache = {}); if (!C[t + c]) C[t + c] = buildModel({ t, color: c }); });
+  const next = () => {
+    if (!jobs.length) return;
+    if (fight || document.hidden) { setTimeout(next, 1500); return; }
+    try { jobs.shift()(); } catch (e) { console.warn("preload stopped", e); return; }
+    idle(next);
+  };
+  setTimeout(() => idle(next), 1500);
+}
 
 /* ---------- transitions between the board and the arena ---------- */
 function wipe(mid, after) { // shutters close, mid() runs hidden, shutters open
@@ -4557,7 +4691,7 @@ function boardLoop(now) {
   requestAnimationFrame(boardLoop);
   if (!B3.ok || fight || document.hidden) { B3.last = now; return; }
   const dt = Math.min(0.05, (now - B3.last) / 1000); B3.last = now;
-  let active = B3.anims.length || B3.frags.length || B3.glow.list.length || B3.fxLight.intensity > 0.02 || B3.shake > 0 || selected || B3.check || B3.focus.k !== B3.focus.to;
+  let active = B3.anims.length || B3.frags.length || B3.glow.n || B3.fxLight.intensity > 0.02 || B3.shake > 0 || selected || B3.check || B3.focus.k !== B3.focus.to;
   if (!active && !B3.dirty) return;
   B3.dirty = false;
   for (const a of B3.anims) {
@@ -4732,6 +4866,7 @@ function start(data) {
   if (data && data.S) { S = data.S; nextId = data.nextId || 1000; Object.assign(CONFIG, data.CONFIG || {}, { fightSeconds: 30, healPct: 0.15 }); }
   $("side").value = CONFIG.human; $("level").value = String(CONFIG.level);
   if (data && data.S) { render(); showStats(S.board[7][1]); maybeCpuTurn(); } else newGame();
+  if (!navigator.webdriver || /[?&]preload=1/.test(location.search)) preload3D();
 }
 try { document.fonts && document.fonts.load('700 20px "Teko"'); } catch (e) {}
 window.claude?.hot?.snapshot?.(() => (fight ? null : { S, nextId, CONFIG: { ...CONFIG } }));

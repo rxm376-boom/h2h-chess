@@ -56,7 +56,7 @@ function buildStages() {
   add(court, new T.CircleGeometry(2.06, 20, 0, Math.PI), new T.MeshBasicMaterial({ color: 0x06080f }), 0, 4.4, -19.55);
   const hedge = new T.MeshStandardMaterial({ color: 0x0f2219, roughness: 1 });
   for (const x of [-40, -34, -14, 14, 34, 40]) { add(court, new T.ConeGeometry(1.3, 6.4, 10), hedge, x, 3.2, -18.6); }
-  court.visible = false; scene.add(court);
+  mergeStatic(court); court.visible = false; scene.add(court);
 
   // --- Throne Vault: crimson and gold, a throne on a dais, hanging chandeliers ---
   const vault = new T.Group();
@@ -84,7 +84,7 @@ function buildStages() {
     const L = new T.PointLight(0xffa050, 0.9, 30, 2); L.position.set(0, -0.5, 0); c.add(L);
     vault.add(c); R3.chand.push(c);
   }
-  vault.visible = false; scene.add(vault);
+  mergeStatic(vault); vault.visible = false; scene.add(vault);
   R3.sets = [null, court, vault];
 }
 function applyStage(i, light) {

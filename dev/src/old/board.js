@@ -305,7 +305,7 @@ function boardLoop(now) {
   requestAnimationFrame(boardLoop);
   if (!B3.ok || fight || document.hidden) { B3.last = now; return; }
   const dt = Math.min(0.05, (now - B3.last) / 1000); B3.last = now;
-  let active = B3.anims.length || B3.frags.length || B3.glow.list.length || B3.fxLight.intensity > 0.02 || B3.shake > 0 || selected || B3.check || B3.focus.k !== B3.focus.to;
+  let active = B3.anims.length || B3.frags.length || B3.glow.n || B3.fxLight.intensity > 0.02 || B3.shake > 0 || selected || B3.check || B3.focus.k !== B3.focus.to;
   if (!active && !B3.dirty) return;
   B3.dirty = false;
   for (const a of B3.anims) {
@@ -480,6 +480,7 @@ function start(data) {
   if (data && data.S) { S = data.S; nextId = data.nextId || 1000; Object.assign(CONFIG, data.CONFIG || {}, { fightSeconds: 30, healPct: 0.15 }); }
   $("side").value = CONFIG.human; $("level").value = String(CONFIG.level);
   if (data && data.S) { render(); showStats(S.board[7][1]); maybeCpuTurn(); } else newGame();
+  if (!navigator.webdriver || /[?&]preload=1/.test(location.search)) preload3D();
 }
 try { document.fonts && document.fonts.load('700 20px "Teko"'); } catch (e) {}
 window.claude?.hot?.snapshot?.(() => (fight ? null : { S, nextId, CONFIG: { ...CONFIG } }));

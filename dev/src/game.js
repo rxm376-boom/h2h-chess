@@ -221,7 +221,7 @@ function hudFrame(F) {
   const cine = !!F.cine || (F.phase === "intro" && F.phaseT < F.intro.tWide) || (F.phase === "outro" && F.outroT >= F.outro.tWin);
   hud.classList.toggle("cine", cine);
   layer.classList.toggle("nofight", F.phase !== "fight" || !!F.cine);
-  const me = F.f[CONFIG.human], sb = document.querySelector(".pad .b-s");
+  const me = F.f[CONFIG.human], sb = H.spBtn || (H.spBtn = document.querySelector(".pad .b-s"));
   if (sb && me) sb.classList.toggle("empty", !spReady(me) && !(me.rage && !me.rageUsed));
 }
 function dmgNumber(e) {
@@ -255,7 +255,7 @@ function hudEvent(F, e) {
     case "boom": duelSfx("ko"); break;
     case "shatter": duelSfx("shatter"); break;
     case "cine": { duelSfx(e.rage ? "rage" : "special"); const mn = $("mvName"); mn.textContent = F.cine ? F.cine.label : ""; mn.className = `mvname ${e.f.color} ${e.rage ? "rage" : ""}`; restart(mn, "go"); break; }
-    case "rageart": { const mn = $("mvName"); mn.textContent = F.cine.label; mn.className = `mvname ${e.f.color} rage hold`; restart(mn, "go"); break; }
+    case "rageart": { const mn = $("mvName"); mn.textContent = F.cine ? F.cine.label : e.f.s.rageName; mn.className = `mvname ${e.f.color} rage hold`; restart(mn, "go"); break; }
     case "ko": musicStop(0.5); announce(e.timeout ? "TIME UP" : "K.O.", e.timeout ? "time" : "ko"); duelSfx(e.timeout ? "fight" : "ko"); $("mvName").className = "mvname"; break;
   }
 }
@@ -278,18 +278,36 @@ function startFight(att, def, onDone, opts) {
   }
   document.body.classList.add("dueling");
   layer.hidden = false;
+  if (R3.drawFail) { R3.drawFail = false; R3.ok = !R3.lost; } // the 3D picture failed last duel: give it another go
   if (init3D()) { layer.classList.add("three"); resize3D(); setup3D(F); } else layer.classList.remove("three");
   hudSetup(F);
   $("exitBtn").hidden = !F.practice; $("movesBtn").hidden = !F.practice; $("pMoves").hidden = true;
   if (F.practice) $("pMovesList").innerHTML = moveList(F.f[F.me].t);
-  requestAnimationFrame(loop);
+  F.tick = now => loop(F, now); F.bad = { step: 0, draw: 0 };
+  requestAnimationFrame(F.tick);
   return F;
 }
-function loop(now) {
-  const F = fight; if (!F) return;
+// One frame of a duel. The next frame is booked before anything else runs and each stage is fenced off,
+// so a fault in one frame (a missing element, a lost graphics context) can never leave the fight frozen on screen.
+function loop(F, now) {
+  if (fight !== F) return;
+  requestAnimationFrame(F.tick);
   const rdt = Math.min(0.05, Math.max(0, (now - F.last) / 1000)); F.last = now;
-  stepDuel(F, rdt);
-  if (fight === F) { for (const e of F.events) hudEvent(F, e); hudFrame(F); drawDuel(F); F.events.length = 0; requestAnimationFrame(loop); }
+  try { stepDuel(F, rdt); F.bad.step = 0; }
+  catch (e) {
+    console.error("duel step failed", e);
+    if (++F.bad.step > 30 && !F.net && F.phase === "fight" && !F.result) { // the rules engine is stuck: settle the duel on health, as the clock would
+      try { F.cine = null; endDuel(F, null); } catch (e2) { F.result = { attackerWon: false, attackerHp: F.att.hp, defenderHp: Math.max(1, F.def.hp), timeout: true }; }
+      F.phase = "outro"; F.outroT = 0; F.slow = 0; F.outro = { tWin: 1.0, end: 3.3, said: false };
+    } else if (F.bad.step > 30 && F.phase === "outro") endFight(F);
+  }
+  if (fight === F) {
+    for (const e of F.events) { try { hudEvent(F, e); } catch (err) { console.error("hud event failed", e.type, err); } }
+    try { hudFrame(F); } catch (e) { console.error("hud failed", e); }
+    try { drawDuel(F); F.bad.draw = 0; }
+    catch (e) { console.error("draw failed", e); if (++F.bad.draw > 5 && R3.ok) { R3.ok = false; R3.drawFail = true; layer.classList.remove("three"); } } // fall back to the flat renderer rather than a frozen picture
+    F.events.length = 0;
+  }
   pressed.clear(); touch.pressed.clear();
 }
 function showPlate(f) {
@@ -358,6 +376,22 @@ $("exitBtn").addEventListener("click", () => { const F = fight; if (F && F.pract
 $("movesBtn").addEventListener("click", () => { $("pMoves").hidden = !$("pMoves").hidden; });
 for (const b of document.querySelectorAll(".sndToggle")) b.addEventListener("click", () => { auInit(); setMuted(!AU.muted); });
 setMuted(AU.muted);
+
+/* ---------- getting the arena ready ahead of time ---------- */
+// The hall, the other two arenas and the ten fighter models are built in idle moments on the board,
+// one piece of work at a time, so the first duel opens as quickly as any later one.
+function preload3D() {
+  const idle = window.requestIdleCallback ? fn => requestIdleCallback(fn, { timeout: 3000 }) : fn => setTimeout(fn, 250);
+  const jobs = [() => { if (init3D()) { if (!R3.blobs) stageExtras(); } }, () => { if (R3.ok && !R3.sets) buildStages(); }];
+  for (const c of ["w", "b"]) for (const t of "QRNBP") jobs.push(() => { if (!R3.ok) return; const C = R3.modelCache || (R3.modelCache = {}); if (!C[t + c]) C[t + c] = buildModel({ t, color: c }); });
+  const next = () => {
+    if (!jobs.length) return;
+    if (fight || document.hidden) { setTimeout(next, 1500); return; }
+    try { jobs.shift()(); } catch (e) { console.warn("preload stopped", e); return; }
+    idle(next);
+  };
+  setTimeout(() => idle(next), 1500);
+}
 
 /* ---------- transitions between the board and the arena ---------- */
 function wipe(mid, after) { // shutters close, mid() runs hidden, shutters open
