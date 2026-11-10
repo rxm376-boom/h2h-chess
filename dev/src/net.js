@@ -91,6 +91,7 @@ function netOnMsg(o) {
   else if (o.t === "st") netDuelLoad(o);
   else if (o.t === "sq") { if (NET.host) netCtl({ t: "S", s: JSON.stringify(S), n: nextId }); }
   else if (o.t === "S") { if (!NET.host && !fight && !clashing) { S = JSON.parse(o.s); nextId = o.n; selected = null; targets = []; NET.queue = []; render(); } }
+  else if (o.t === "flag") { const g = gameGen, f = () => { if (g !== gameGen || !NET.on) return; if (fight || clashing) { setTimeout(f, 300); return; } flagFall(opp(CONFIG.human), true); }; f(); }
   else if (o.t === "bye") netOver(`${NET.peerName} left the match.`, CONFIG.human);
   else if (o.t === "again") { NET.again.them = true; if (!NET.again.me) { netStatus(`${NET.peerName} wants a rematch. Press Play again to accept.`); log(`${NET.peerName} wants a rematch.`); } netAgain(); }
   else if (o.t === "new") { if (!NET.host) netNewGame(o.hostColor === "w" ? "b" : "w"); }
@@ -162,7 +163,7 @@ $("goNew").addEventListener("click", e => {
   NET.again.me = true; netCtl({ t: "again" }); netStatus(NET.again.them ? "Starting the rematch…" : `Waiting for ${NET.peerName} to accept the rematch.`); netAgain();
 }, true);
 // a local move goes out before it is played; the rival's moves are played here as they arrive
-function netSendMove(m) { if (NET.on && !NET.applying) netCtl({ t: "mv", fr: m.fr, fc: m.fc, tr: m.tr, tc: m.tc, h: boardHash() }); }
+function netSendMove(m) { if (NET.on && !NET.applying) netCtl({ t: "mv", fr: m.fr, fc: m.fc, tr: m.tr, tc: m.tc, pr: m.promoTo || null, ck: Math.round(S.clock[S.turn] * 10) / 10, h: boardHash() }); }
 function boardHash() { let h = S.turn; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) { const p = S.board[r][c]; h += p ? p.c + p.t + p.hp : "."; } return h; }
 function netPump() {
   if (!NET.on || !NET.queue.length) return;
@@ -171,6 +172,8 @@ function netPump() {
   const o = NET.queue.shift();
   const m = o.h === boardHash() ? legalFrom(S, o.fr, o.fc).find(x => x.tr === o.tr && x.tc === o.tc) : null;
   if (!m) { if (NET.host) netCtl({ t: "S", s: JSON.stringify(S), n: nextId }); else netCtl({ t: "sq" }); return; } // boards disagree: the host's board wins
+  if (m.promo) m.promoTo = "QRBN".includes(o.pr) ? o.pr : "Q";
+  if (typeof o.ck === "number" && o.ck >= 0 && o.ck <= S.clock[S.turn] + 5) S.clock[S.turn] = o.ck; // the mover's own clock is the one that counts
   selected = [m.fr, m.fc]; targets = [m]; render();
   const g = gameGen;
   setTimeout(() => { if (g !== gameGen || !NET.on || fight || clashing) return; NET.applying = true; attemptMove(m); NET.applying = false; }, 300);

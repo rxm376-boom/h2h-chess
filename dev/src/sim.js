@@ -5,6 +5,7 @@
    ===================================================================== */
 const AR = { W: 384, L: 14, R: 370, G: 760 };
 const SP_COST = 50, SP_MAX = 100, SP_START = 25;
+const BACKUP_MAX = 3, BACKUP_SP = 25, BACKUP_POW = 0.12;
 const STEP_DUR = 0.36, STEP_INV = [0.03, 0.25], MAX_SEP = 196;
 
 const STATS = {
@@ -17,10 +18,10 @@ const STATS = {
   B: { name: "Bishop", hp: 105, pow: 1.22, spd: 60, jump: 240, airJumps: 0, dash: null, hw: 15, sp: "blink", value: 3.2,
        style: "Diagonal zoner", spName: "Diagonal teleport (hold back to retreat)", throwName: "Crook Hook", rageName: "DIVINE DIAGONAL",
        notes: ["Punch fires a 45° bolt: up from the ground, down from the air. Bolts ignore armor", "Long staff pokes keep enemies out", "Dodge button sidesteps attacks (no dash)"] },
-  R: { name: "Rook", hp: 110, pow: 1.2, spd: 42, jump: 0, airJumps: 0, dash: { spd: 330, dur: 0.22, dmg: 6, air: false, cd: 1.7 }, hw: 16, sp: "quake", armor: 0.9, value: 5,
+  R: { name: "Rook", hp: 126, pow: 1.2, spd: 42, jump: 0, airJumps: 0, dash: { spd: 330, dur: 0.22, dmg: 6, air: false, cd: 1.7 }, hw: 16, sp: "quake", armor: 0.9, value: 5,
        style: "Tank", spName: "Floor shockwave (jump over it)", throwName: "Tower Slam", rageName: "FORTRESS CRASH",
        notes: ["Can't jump. Slow, heavy, long wind-ups", "Straight dash that hits", "Armor: takes 10% less, shrugs off light hits", "Up + punch = anti-air uppercut"] },
-  Q: { name: "Queen", hp: 138, pow: 1.25, spd: 76, jump: 252, airJumps: 1, dash: { spd: 320, dur: 0.18, dmg: 0, air: true, cd: 0.42 }, hw: 15, sp: "beam", value: 9,
+  Q: { name: "Queen", hp: 146, pow: 1.25, spd: 76, jump: 252, airJumps: 1, dash: { spd: 320, dur: 0.18, dmg: 0, air: true, cd: 0.42 }, hw: 15, sp: "beam", value: 9,
        style: "All-rounder", spName: "Royal bolt (high, duck it)", throwName: "Royal Decree", rageName: "CHECKMATE",
        notes: ["Scepter strings up to 5 hits", "Dashes both ways, also in the air", "Double jump"] },
   K: { name: "King", hp: 0, value: 0 },
@@ -153,20 +154,20 @@ const faceOpp = (f, o) => { if (o.x !== f.x) f.face = o.x > f.x ? 1 : -1; };
 function gainMeter(F, f, n) { const was = f.meter; f.meter = Math.min(SP_MAX, f.meter + n); if (was < SP_COST && f.meter >= SP_COST) F.events.push({ type: "call", f, text: "SPECIAL READY", tone: "sp" }); }
 const call = (F, f, text, tone) => F.events.push({ type: "call", f, text, tone });
 
-function makeFighter(p, isAtt, aiLvl) {
-  const s = STATS[p.t], left = p.c === "w";
+function makeFighter(p, isAtt, aiLvl, backup) {
+  const s = STATS[p.t], left = p.c === "w", bk = Math.max(0, Math.min(BACKUP_MAX, backup | 0));
   return {
     p, t: p.t, s, ms: MOVESET[p.t], color: p.c, isAtt,
     x: left ? 132 : 252, y: 0, z: 0, vx: 0, vy: 0, face: left ? 1 : -1,
     hp: p.hp, max: s.hp, state: "idle", st: 0, move: null, mt: 0, hitDone: false, hitRes: null, spawned: false, chain: 0, buf: null,
-    spCd: 0, meter: SP_START, dashCd: 0, sp: null, dash: null, step: null, inv: 0, combo: 0, comboDmg: 0, comboT: 0, walkT: 0, flash: 0, ko: false, blockLow: false,
+    spCd: 0, meter: Math.min(SP_MAX, SP_START + bk * BACKUP_SP), backup: bk, boost: 1 + bk * BACKUP_POW, dashCd: 0, sp: null, dash: null, step: null, inv: 0, combo: 0, comboDmg: 0, comboT: 0, walkT: 0, flash: 0, ko: false, blockLow: false,
     airJ: s.airJumps, airDash: true, leapUsed: false, tap: { dir: null, t: 9 }, splatted: false, hitPush: 0, hitKind: "mid", stT: 0,
     rage: false, rageUsed: false, juggle: 0, grab: null, thrower: null,
     inp: blankInput(), ai: aiLvl == null ? null : { lvl: aiLvl, think: 0.35 + Math.random() * 0.2, hold: { l: 0, r: 0, u: 0, d: 0 }, queue: [], seen: null, reactT: 0, plan: null, punished: null },
   };
 }
-function makeDuel(att, def, aiLvls, seconds) {
-  const fa = makeFighter(att, true, aiLvls[att.c]), fd = makeFighter(def, false, aiLvls[def.c]);
+function makeDuel(att, def, aiLvls, seconds, backup) {
+  const fa = makeFighter(att, true, aiLvls[att.c], backup && backup.a), fd = makeFighter(def, false, aiLvls[def.c], backup && backup.d);
   return { t: 0, seconds: seconds || 30, f: { [att.c]: fa, [def.c]: fd }, att: fa, def: fd, proj: [], result: null, hitstop: 0, cine: null, events: [], flip: false };
 }
 
@@ -442,7 +443,7 @@ function isBlocking(def, att, lvl) {
   return !I.d || lvl === "high";
 }
 function dmgMult(att, def, m) {
-  let mult = att.s.pow;
+  let mult = att.s.pow * att.boost;
   if ((m.air || m.airy) && att.s.airPow) mult *= att.s.airPow;
   if (lastStandOn(att)) mult *= 1.5;
   if (att.rage) mult *= 1.15;
